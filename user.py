@@ -19,5 +19,5 @@ for conv in convs['items']:
 print("Введите номер беседы:")
 im_id = int(input())
 while True:
-    st = input()
-    vk.messages.send(chat_id = im_id,random_id=get_random_id(),message=st)
+    message_text = input()
+    vk.messages.send(chat_id = im_id,random_id=get_random_id(),message=message_text)
