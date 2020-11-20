@@ -3,10 +3,12 @@
 #   (Оно даже запускается)
 
 bot_token = ""
+my_id = "" 
 
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 
+WALL_LINK = "https://vk.com/wall"
 class Bot:
     __slots__ = ('api', 'session',"convs")
     
@@ -20,12 +22,35 @@ class Bot:
         fulname = name[0]['first_name'] + ' ' + name[0]['last_name']
         return fulname
 
+    def attachments_handler(self,obj):
+        for attachment in obj:
+            if attachment['type'] == "photo":
+                file_url = attachment['photo']['sizes'][-1]['url']
+                print("Фотка: {}".format(file_url))
+            if attachment['type'] == "wall":
+                if attachment['wall']['from_id'] > 0: #Пост от человека
+                    user = self.get_fulname(attachment['wall']['from_id'])
+                    wall_url = WALL_LINK + str(attachment['wall']['from_id']) + '_' + str(attachment['wall']['id'])
+                    print("Это РЭП-пост от пользователя: {}".format(user))
+                    print("Сылка на пост: {}".format(wall_url))
+                else:
+                    public_name = attachment['wall']['from']['name']
+                    wall_url = WALL_LINK + str(attachment['wall']['from_id']) + '_' + str(attachment['wall']['id'])
+                    print("Это РЭП-ПОСТ из паблика {}".format(public_name))
+                    print("Ссылка на пост: {}".format(wall_url))
+            if attachment['type'] == "audio":
+                pass
+
     def poll(self):
         longpoll = VkBotLongPoll(self.session, 198731493)
         for event in longpoll.listen():
-            if event.type == VkBotEventType.MESSAGE_NEW:
+            if event.type == VkBotEventType.MESSAGE_NEW and int(event.message.from_id) != int(my_id):
                 man = self.get_fulname( event.message.from_id )
                 print( "Новое сообщение от {}:".format(man))
-                print(event.message.text)
+                if event.message.text:
+                    print(event.message.text)
+                if event.message.attachments:
+                    self.attachments_handler(event.message.attachments)
+                    
 b = Bot(bot_token)
 b.poll()
