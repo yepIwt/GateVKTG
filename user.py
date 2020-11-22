@@ -4,7 +4,10 @@
 
 from vk_api import VkApi
 import random
+
 kate_mobile_token = ""
+bot_token = ""
+
 ses = VkApi(token=kate_mobile_token)
 #ses.auth()
 vk = ses.get_api()
@@ -18,6 +21,10 @@ for conv in convs['items']:
         print([bid,tit])
 print("Введите номер беседы:")
 im_id = int(input())
+
+ses_bot = VkApi(token=bot_token)
+vk = ses_bot.get_api()
+
 while True:
     message_text = input()
     vk.messages.send(chat_id = im_id,random_id=get_random_id(),message=message_text)
