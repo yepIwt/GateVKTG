@@ -5,18 +5,22 @@
 bot_token = ""
 my_id = "" 
 
+from vk_api import audio
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 
 WALL_LINK = "https://vk.com/wall"
+
 class Bot:
     __slots__ = ('api', 'session',"convs")
     
     def __init__(self, token):
-        self.session = vk_api.VkApi(token=token)
+        self.session = vk_api.VkApi(token=token,api_version='5.126')
         self.api = self.session.get_api()
-        self.convs = []
     
+    def get_audio(self,session):
+        self.audio = audio.VkAudio(self.api)
+
     def get_fulname(self,id):
         name = self.api.users.get(user_ids=id)
         fulname = name[0]['first_name'] + ' ' + name[0]['last_name']
@@ -38,17 +42,19 @@ class Bot:
                     wall_url = WALL_LINK + str(attachment['wall']['from_id']) + '_' + str(attachment['wall']['id'])
                     print("Это РЭП-ПОСТ из паблика {}".format(public_name))
                     print("Ссылка на пост: {}".format(wall_url))
-            if attachment['type'] == "audio":
-                pass
+            if attachment['type'] == "audio":    #Ticket 1: "Нет получения аудио из сообщений"
+                print("Аудио: {} - {}".format(attachment['audio']['artist'],attachment['audio']['title']))
+            
 
     def poll(self):
         longpoll = VkBotLongPoll(self.session, 198731493)
         for event in longpoll.listen():
             if event.type == VkBotEventType.MESSAGE_NEW and int(event.message.from_id) != int(my_id):
                 man = self.get_fulname( event.message.from_id )
+                print(event.message)
                 print( "Новое сообщение от {}:".format(man))
                 if event.message.text:
-                    print(event.message.text)
+                    print("Сообщение: {}".format(event.message.text))
                 if event.message.attachments:
                     self.attachments_handler(event.message.attachments)
                     
