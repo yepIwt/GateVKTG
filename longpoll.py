@@ -4,7 +4,7 @@
 
 bot_token = ""
 my_id = "" 
-
+#https://vk.com/video-185667352_456239040
 from vk_api import audio
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
@@ -12,6 +12,7 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 WALL_LINK = "https://vk.com/wall"
 
 class Bot:
+
     __slots__ = ('api', 'session',"convs")
     
     def __init__(self, token):
@@ -31,7 +32,7 @@ class Bot:
             if attachment['type'] == "photo":
                 file_url = attachment['photo']['sizes'][-1]['url']
                 print("Фотка: {}".format(file_url))
-            if attachment['type'] == "wall":
+            elif attachment['type'] == "wall":
                 if attachment['wall']['from_id'] > 0: #Пост от человека
                     user = self.get_fulname(attachment['wall']['from_id'])
                     wall_url = WALL_LINK + str(attachment['wall']['from_id']) + '_' + str(attachment['wall']['id'])
@@ -42,15 +43,18 @@ class Bot:
                     wall_url = WALL_LINK + str(attachment['wall']['from_id']) + '_' + str(attachment['wall']['id'])
                     print("Это РЭП-ПОСТ из паблика {}".format(public_name))
                     print("Ссылка на пост: {}".format(wall_url))
-            if attachment['type'] == "audio":    #Ticket 1: "Нет получения аудио из сообщений"
+            elif attachment['type'] == "audio":    #Ticket 1: "Нет получения аудио из сообщений"
                 print("Аудио: {} - {}".format(attachment['audio']['artist'],attachment['audio']['title']))
-            
-
+            elif attachment['type'] == 'video': #Ticket 2: "Нет получения видео из сообщений"
+                print("Видео - {}".format(attachment['video']['title']))
+            elif attachment['type'] == 'doc':
+                print(attachment)
     def poll(self):
         longpoll = VkBotLongPoll(self.session, 198731493)
         for event in longpoll.listen():
             if event.type == VkBotEventType.MESSAGE_NEW and int(event.message.from_id) != int(my_id):
                 man = self.get_fulname( event.message.from_id )
+                print(self.api.messages.getHistoryAttachments(peer_id=2000000001,media_type="video"))
                 print(event.message)
                 print( "Новое сообщение от {}:".format(man))
                 if event.message.text:
