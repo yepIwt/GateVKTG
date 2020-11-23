@@ -18,9 +18,6 @@ class Bot:
     def __init__(self, token):
         self.session = vk_api.VkApi(token=token,api_version='5.126')
         self.api = self.session.get_api()
-    
-    def get_audio(self,session):
-        self.audio = audio.VkAudio(self.api)
 
     def get_fulname(self,id):
         name = self.api.users.get(user_ids=id)
