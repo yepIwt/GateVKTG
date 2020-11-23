@@ -4,7 +4,7 @@
 
 bot_token = ""
 my_id = "" 
-#https://vk.com/video-185667352_456239040
+
 from vk_api import audio
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
@@ -48,14 +48,14 @@ class Bot:
             elif attachment['type'] == 'video': #Ticket 2: "Нет получения видео из сообщений"
                 print("Видео - {}".format(attachment['video']['title']))
             elif attachment['type'] == 'doc':
-                print(attachment)
+                print("Файл: {}".format(attachment['doc']['title']))
+                print("Link - {}".format(attachment['doc']['url']))
+
     def poll(self):
         longpoll = VkBotLongPoll(self.session, 198731493)
         for event in longpoll.listen():
             if event.type == VkBotEventType.MESSAGE_NEW and int(event.message.from_id) != int(my_id):
-                man = self.get_fulname( event.message.from_id )
-                print(self.api.messages.getHistoryAttachments(peer_id=2000000001,media_type="video"))
-                print(event.message)
+                man = self.get_fulname( event.message.from_id)
                 print( "Новое сообщение от {}:".format(man))
                 if event.message.text:
                     print("Сообщение: {}".format(event.message.text))
