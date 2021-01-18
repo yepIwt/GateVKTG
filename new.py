@@ -15,10 +15,13 @@ def id_to_name(id):
 
 def message_handler(object):
 	if object.type == VkBotEventType.MESSAGE_NEW:
-		print('[NEW] Message')
-		f,l = id_to_name(object.message.from_id)
-		print('[FROM] {} {}'.format(f,l))
-		print('[TEXT] {}'.format(object.message.text))
+		if object.message['action']: #todo: action == chat_invite_user
+			print('[ADD] Added to a chat')
+		else:
+			print('[NEW] Message')
+			f,l = id_to_name(object.message.from_id)
+			print('[FROM] {} {}'.format(f,l))
+			print('[TEXT] {}'.format(object.message.text))
 
 def leave_join_handler(object):
 	if object.type == VkBotEventType.GROUP_JOIN:
