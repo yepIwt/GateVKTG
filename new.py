@@ -50,6 +50,8 @@ class VkObject(object):
 
 		for event in self.config.longpoll.listen():
 			if event.type == VkBotEventType.MESSAGE_NEW:
+				if event.message.peer_id not in self.config.data['convers']:
+					self.config.data['convers'].append(event.message.peer_id)
 				if event.message.peer_id > 2000000000:
 					self.chat_message_handler(event)
 				else:
