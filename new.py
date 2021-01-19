@@ -54,9 +54,11 @@ class VkObject(object):
 					self.chat_message_handler(event)
 				else:
 					self.private_message_handler(event)
+			elif event.type == VkBotEventType.MESSAGE_TYPING_STATE:
+				f,l = self.funcs.id_to_name(event.object.from_id)
+				print('[LOG] {} {} typing...'.format(f,l))
 			else:
 				print(event.type)
-				print('unknow handler')
 
 	def send_message(self, message_text: str, peer_id: int):
 		self.config.api.messages.send(message=message_text,peer_id=peer_id,random_id=get_random_id())
