@@ -19,16 +19,34 @@ def chat_id_to_name(id):
 	answ = api.messages.getConversationsById(peer_ids=id,group_id=GROUP_ID)
 	return answ['items'][0]['chat_settings']['title']
 
+def attachments_handler(object):
+	ats = []
+	for attach in object.message['attachments']:
+		type = attach['type']
+		f,l = id_to_name(attach[type]['owner_id'])
+		owner_attachment = f + ' ' + l
+		if type == 'photo':
+			file_url = attach[type]['sizes'][-1]['url']
+			file_name = 'photo_file'
+		else:
+			file_url = attach[type]['url']
+			file_name = attach[type]['title']
+		pkg = {
+			'a_type': type,
+			'a_owner': owner_attachment,
+			'f_name': file_name,
+			'f_url': file_url,
+		}
+		#print(attach)
+		ats.append(pkg)
+	return ats
+
 def message_handler(object):
 	if object.type == VkBotEventType.MESSAGE_NEW:
-		print(dir(object))
 		if object.message['action']: #todo: action == chat_invite_user
-			print('[ADD] inChat')
-		else:
-			print('[NEW] Private message')
-			f,l = id_to_name(object.message.from_id)
-			print('[FROM] {} {}'.format(f,l))
-			print('[TEXT] {}'.format(object.message.text))
+			print('inchat invite')
+
+
 	elif object.type == VkBotEventType.MESSAGE_NEW and object.from_chat:
 		print('[NEW] Message inChat')
 		f,l = id_to_name(object.message.from_id)
@@ -40,7 +58,11 @@ def chat_message_handler(object):
 	print('[NEW] Chat message: {}'.format(chat_id_to_name(object.message.peer_id)))
 	f,l = id_to_name(object.message.from_id)
 	print('[FROM] {} {}'.format(f,l))
-	print('[TEXT] {}'.format(event.message.text))
+	if object.message['text']:
+		print('[TEXT] {}'.format(event.message.text))
+	if object.message['attachments']:
+		for a in attachments_handler(object):
+			print(a)
 
 def private_message_handler(object):
 	print('[NEW] Private message')
