@@ -1,5 +1,6 @@
 from vk_api import VkApi
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+from vk_api.utils import get_random_id
 
 TOKEN = ''
 PEER_CONST = 2000000000
@@ -54,6 +55,9 @@ def message_handler(object):
 		print('[CHAT] ID {}'.format(event.chat_id))
 		print('[TEXT] {}'.format(event.text))
 
+def send_message(message_text: str, id):
+	api.messages.send(message=message_text,peer_id=id,random_id=get_random_id())
+
 def chat_message_handler(object):
 	print('[NEW] Chat message: {}'.format(chat_id_to_name(object.message.peer_id)))
 	f,l = id_to_name(object.message.from_id)
@@ -63,6 +67,7 @@ def chat_message_handler(object):
 	if object.message['attachments']:
 		for a in attachments_handler(object):
 			print(a)
+	send_message('Получил сообщение в беседе',object.message.peer_id)
 
 def private_message_handler(object):
 	print('[NEW] Private message')
