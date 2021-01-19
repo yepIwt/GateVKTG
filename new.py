@@ -68,7 +68,12 @@ def private_message_handler(object):
 	print('[NEW] Private message')
 	f,l = id_to_name(object.message.from_id)
 	print('[FROM] {} {}'.format(f,l))
-	print('[TEXT] {}'.format(event.message.text))
+	if object.message['text']:
+		print('[TEXT] {}'.format(event.message.text))
+	if object.message['attachments']:
+		for a in attachments_handler(object):
+			print(a)
+
 
 def leave_join_handler(object):
 	if object.type == VkBotEventType.GROUP_JOIN:
