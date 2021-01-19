@@ -1,10 +1,8 @@
-from vk_api import VkApi
-from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+import confs
+from vk_api.bot_longpoll import VkBotEventType
 from vk_api.utils import get_random_id
 
-TOKEN = ''
 PEER_CONST = 2000000000
-GROUP_ID = 198731493
 
 class Functions(object):
 
@@ -17,8 +15,8 @@ class Functions(object):
 		answ = self.api.users.get(user_ids=id,fields='first_name,last_name')
 		return answ[0]['first_name'],answ[0]['last_name']
 
-	def peer_id_to_title(self,id):
-		answ = self.api.messages.getConversationsById(peer_ids=id,group_id=GROUP_ID)
+	def peer_id_to_title(self,id,group_id):
+		answ = self.api.messages.getConversationsById(peer_ids=id,group_id=group_id)
 		return answ['items'][0]['chat_settings']['title']
 
 	def attachments_handler(self,event):
@@ -44,14 +42,13 @@ class Functions(object):
 
 class VkObject(object):
 
-	__slots__ = ('longpoll','api','funcs')
+	__slots__ = ('config','funcs')
 
-	def __init__(self,token,group_id):
-		ses = VkApi(token=token)
-		self.longpoll = VkBotLongPoll(ses, group_id)
-		self.api = ses.get_api()
-		self.funcs = Functions(self.api)
-		for event in self.longpoll.listen():
+	def __init__(self):
+		self.config = confs.Config('password')
+		self.funcs = Functions(self.config.api)
+
+		for event in self.config.longpoll.listen():
 			if event.type == VkBotEventType.MESSAGE_NEW:
 				if event.message.peer_id > 2000000000:
 					self.chat_message_handler(event)
@@ -62,10 +59,10 @@ class VkObject(object):
 				print('unknow handler')
 
 	def send_message(self, message_text: str, peer_id: int):
-		self.api.messages.send(message=message_text,peer_id=peer_id,random_id=get_random_id())
+		self.config.api.messages.send(message=message_text,peer_id=peer_id,random_id=get_random_id())
 
 	def chat_message_handler(self,object):
-		print('[NEW] Chat message: {}'.format(self.funcs.peer_id_to_title(object.message.peer_id)))
+		print('[NEW] Chat message: {}'.format(self.funcs.peer_id_to_title(object.message.peer_id,self.config.data['group_id'])))
 		f,l = self.funcs.id_to_name(object.message.from_id)
 		print('[FROM] {} {}'.format(f,l))
 		if object.message['text']:
@@ -73,6 +70,7 @@ class VkObject(object):
 		if object.message['attachments']:
 			for a in self.funcs.attachments_handler(object):
 				print(a)
+		self.send_message('Получил сообщение из беседы',object.message.peer_id)
 
 	def private_message_handler(self,object):
 		print('[NEW] Private message')
@@ -84,4 +82,4 @@ class VkObject(object):
 			for a in self.funcs.attachments_handler(object):
 				print(a)
 
-VkObject(TOKEN,GROUP_ID)
+VkObject()
