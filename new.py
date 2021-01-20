@@ -50,12 +50,17 @@ class VkObject(object):
 
 		for event in self.config.longpoll.listen():
 			if event.type == VkBotEventType.MESSAGE_NEW:
-				if event.message.peer_id not in self.config.data['convers']:
-					self.config.data['convers'].append(event.message.peer_id)
 				if event.message.peer_id > 2000000000:
+					if event.message.peer_id not in self.config.data['chats']:
+						self.config.data['chats'].append(event.message.peer_id)
+						print('[LOG] Created new chat')
 					self.chat_message_handler(event)
 				else:
+					if event.message.peer_id not in self.config.data['convers']:
+						self.config.data['convers'].append(event.message.peer_id)
+						print('[LOG] Created new conversation')
 					self.private_message_handler(event)
+					
 			elif event.type == VkBotEventType.MESSAGE_TYPING_STATE:
 				f,l = self.funcs.id_to_name(event.object.from_id)
 				print('[LOG] {} {} typing...'.format(f,l))
@@ -75,6 +80,7 @@ class VkObject(object):
 			for a in self.funcs.attachments_handler(object):
 				print(a)
 		self.send_message('Получил сообщение из беседы',object.message.peer_id)
+		self.config.save_in_file()
 
 	def private_message_handler(self,object):
 		print('[NEW] Private message')
@@ -85,5 +91,6 @@ class VkObject(object):
 		if object.message['attachments']:
 			for a in self.funcs.attachments_handler(object):
 				print(a)
+		self.config.save_in_file()
 
 VkObject()
