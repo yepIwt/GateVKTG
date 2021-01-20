@@ -15,6 +15,10 @@ class Functions(object):
 		answ = self.api.users.get(user_ids=id,fields='first_name,last_name')
 		return answ[0]['first_name'],answ[0]['last_name']
 
+	def id_to_name_group(self,id):
+		answ = self.api.groups.getById(group_id=id)
+		return answ[0]['name'].split(' ')
+
 	def peer_id_to_title(self,id,group_id):
 		answ = self.api.messages.getConversationsById(peer_ids=id,group_id=group_id)
 		return answ['items'][0]['chat_settings']['title']
@@ -39,6 +43,21 @@ class Functions(object):
 			}
 			ats.append(pkg)
 		return ats
+
+
+	def get_message_history(self,peer_id: int):
+		answ = self.api.messages.getHistory(peer_id=peer_id)
+		objs = []
+		for message in answ['items']:
+			msid = message['id']
+			uid = message['from_id']
+			if uid < 0:
+				f,l = self.id_to_name_group(uid)
+			else:
+				f,l = self.id_to_name(uid)
+			text = message['text']
+			objs.append('{}:{} | {} {}: {}'.format(msid, uid, f, l, text ))
+		return objs
 
 class VkObject(object):
 
