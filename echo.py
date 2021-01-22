@@ -1,19 +1,7 @@
-#!/usr/bin/env python
-# pylint: disable=W0613, C0116
-# type: ignore[union-attr]
-# This program is dedicated to the public domain under the CC0 license.
-
 import logging
-
+import confs
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-
-logger = logging.getLogger(__name__)
 
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Hi!')
@@ -51,6 +39,12 @@ def main():
     updater.start_polling()
     updater.idle()
 
+class TgObject(object):
 
-if __name__ == '__main__':
-    main()
+    __slots__ = ('config')
+
+    def __init__(self):
+        self.config = confs.Config('password')
+        print(self.config.data)
+
+TgObject()
