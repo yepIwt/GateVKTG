@@ -18,18 +18,32 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Hi!')
 
+def get_name(obj):
+    f = obj.message.to_dict()['from']['first_name']
+    l = ''
+    if 'last_name' in obj.message.to_dict()['from']:
+        l = obj.message.to_dict()['from']['last_name']
+    return f,l
+
+
 def echo(update: Update, context: CallbackContext) -> None:
+    print(update.message.to_dict())
+    title = update['message']['chat']['title']
+    f,l = get_name(update)
+    msg_text = update.message.text
+    print('[NEW] Message from chat: {}'.format(msg_text))
+    print('[FROM] {} {}'.format(f,l))
+    print('[TEXT] {}'.format(msg_text))
     update.message.reply_text(update.message.text)
 
-def main()
-    updater = Updater('TOKEN', use_context=True)
-
-    # Get the dispatcher to register handlers
+def main():
+    updater = Updater('', use_context=True)
+ 
+   # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("help", help_command))
 
     # on noncommand i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
