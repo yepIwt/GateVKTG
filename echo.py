@@ -17,11 +17,14 @@ class TgObject(object):
     __slots__ = ('config','funcs')
 
     def tg_hangler(self,update: Update, context: CallbackContext):
-        #print(update.message.to_dict())
-        title = update['message']['chat']['title']
+        print(update.message.to_dict())
+        if update.message.to_dict()['chat']['type'] == 'private':
+            print('[NEW] Private message')
+        else:
+            title = update['message']['chat']['title']
+            print('[NEW] Message from chat: {}'.format(title))
         f,l = self.funcs.get_name(update)
         msg_text = update.message.text
-        print('[NEW] Message from chat: {}'.format(title))
         print('[FROM] {} {}'.format(f,l))
         print('[TEXT] {}'.format(msg_text))
         update.message.reply_text(update.message.text)
