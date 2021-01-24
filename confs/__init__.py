@@ -2,6 +2,8 @@ import os
 import ast
 from .crypt import LetItCrypt
 from vk_api import VkApi
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from Crypto.Cipher import DES
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 
@@ -9,7 +11,7 @@ PEER_CONST = 2000000000
 
 class Config(object):
 
-    __slots__ = ('crypter','data','vk_api','tg_token','longpoll')
+    __slots__ = ('crypter','data','vk_api','tg_api','longpoll')
 
     def __init__(self,passw):
         self.crypter = LetItCrypt(passw)
@@ -19,13 +21,12 @@ class Config(object):
         self.data = ast.literal_eval(config_as_str)
         self.__get_api_vk(self.data['vk']['vk_token'], self.data['vk']['group_id'])
         self.data['vk']['convers'] = self.__get_vk_conversations(self.data['vk']['group_id'],[],0)
-        print(self.data)
 
     def __get_api_vk(self,token: str,group_id: int) -> None:
         session = VkApi(token=token)
         self.longpoll = VkBotLongPoll(session,group_id)
         self.vk_api = session.get_api()
-    
+
     def __get_vk_conversations(self, gid: int, convs: list, offset: int):
         answ = self.vk_api.messages.getConversations(offset=offset,count=200,filter='all',group_id=gid)
         if answ['items']:
@@ -33,6 +34,12 @@ class Config(object):
                 convs.append(it['conversation']['peer']['id'])
             self.__get_vk_conversations(gid,convs,200)
         return convs
+
+    def get_api_tg(self, token: str, tg_handler_func_name):
+        up = Updater(token, use_context = True)
+        dispatcher = up.dispatcher
+        dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, tg_handler_func_name))
+        return up
 
     def new_cfg(self):
         vk_token = input('Введите токен для vk_api (vk admin token): ')

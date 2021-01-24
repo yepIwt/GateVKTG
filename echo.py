@@ -3,48 +3,34 @@ import confs
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Hi!')
+class Functions(object):
 
-def get_name(obj):
-    f = obj.message.to_dict()['from']['first_name']
-    l = ''
-    if 'last_name' in obj.message.to_dict()['from']:
-        l = obj.message.to_dict()['from']['last_name']
-    return f,l
-
-
-def echo(update: Update, context: CallbackContext) -> None:
-    print(update.message.to_dict())
-    title = update['message']['chat']['title']
-    f,l = get_name(update)
-    msg_text = update.message.text
-    print('[NEW] Message from chat: {}'.format(msg_text))
-    print('[FROM] {} {}'.format(f,l))
-    print('[TEXT] {}'.format(msg_text))
-    update.message.reply_text(update.message.text)
-
-def main():
-    updater = Updater('', use_context=True)
- 
-   # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
-
-    # on different commands - answer in Telegram
-    dispatcher.add_handler(CommandHandler("start", start))
-
-    # on noncommand i.e message - echo the message on Telegram
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
-
-    updater.start_polling()
-    updater.idle()
+    def get_name(self,obj):
+        f = obj.message.to_dict()['from']['first_name']
+        l = ''
+        if 'last_name' in obj.message.to_dict()['from']:
+            l = obj.message.to_dict()['from']['last_name']
+        return f,l
 
 class TgObject(object):
 
-    __slots__ = ('config')
+    __slots__ = ('config','funcs')
+
+    def tg_hangler(self,update: Update, context: CallbackContext):
+        #print(update.message.to_dict())
+        title = update['message']['chat']['title']
+        f,l = self.funcs.get_name(update)
+        msg_text = update.message.text
+        print('[NEW] Message from chat: {}'.format(title))
+        print('[FROM] {} {}'.format(f,l))
+        print('[TEXT] {}'.format(msg_text))
+        update.message.reply_text(update.message.text)
 
     def __init__(self):
         self.config = confs.Config('password')
-        print(self.config.data)
+        self.funcs = Functions()
+        self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
+        self.config.tg_api.start_polling()
+        self.config.tg_api.idle()
 
 TgObject()
