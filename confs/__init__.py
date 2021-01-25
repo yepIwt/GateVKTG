@@ -11,7 +11,7 @@ PEER_CONST = 2000000000
 
 class Config(object):
 
-    __slots__ = ('crypter','data','vk_api','tg_api','longpoll')
+    __slots__ = ('crypter','data','vk_api','tg_api','tg_dispatcher','longpoll')
 
     def __init__(self,passw):
         self.crypter = LetItCrypt(passw)
@@ -37,8 +37,8 @@ class Config(object):
 
     def get_api_tg(self, token: str, tg_handler_func_name):
         up = Updater(token, use_context = True)
-        dispatcher = up.dispatcher
-        dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, tg_handler_func_name))
+        self.tg_dispatcher = up.dispatcher
+        self.tg_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, tg_handler_func_name))
         return up
 
     def new_cfg(self):
@@ -54,6 +54,7 @@ class Config(object):
             },
             'tg':{
                 'tg_token': tg_token,
+                'admin': None,
             }
         }
         self.crypter.enc(str(new_config))

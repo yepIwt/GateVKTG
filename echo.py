@@ -5,6 +5,8 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 class Functions(object):
 
+    __slots__ = ('admin_id')
+
     def get_name(self,obj):
         f = obj.message.to_dict()['from']['first_name']
         l = ''
@@ -27,12 +29,24 @@ class TgObject(object):
         msg_text = update.message.text
         print('[FROM] {} {}'.format(f,l))
         print('[TEXT] {}'.format(msg_text))
+
+        self.config.save_in_file()
         update.message.reply_text(update.message.text)
+
+    def get_admin(self,update: Update, context: CallbackContext) -> None:
+        self.config.data['tg']['admin'] = update.to_dict()['message']['from']['username']
+        self.config.save_in_file()
+        message_text = '@{} зарагестрирован админом'.format(update.to_dict()['message']['from']['username'])
+        update.message.reply_text(message_text)
 
     def __init__(self):
         self.config = confs.Config('password')
         self.funcs = Functions()
+        print(self.config.data)
+        if self.config.data['tg']['admin'] == None:
+            print('[WARNING] У бота нет админа')
         self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
+        self.config.tg_dispatcher.add_handler(CommandHandler("admin", self.get_admin))
         self.config.tg_api.start_polling()
         self.config.tg_api.idle()
 
