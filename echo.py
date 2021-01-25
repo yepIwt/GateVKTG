@@ -1,11 +1,12 @@
 import logging
 import confs
+from telegram import Bot
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 class Functions(object):
 
-    __slots__ = ('admin_id')
+    __slots__ = ('admin_id','api_messages')
 
     def get_name(self,obj):
         f = obj.message.to_dict()['from']['first_name']
@@ -14,9 +15,16 @@ class Functions(object):
             l = obj.message.to_dict()['from']['last_name']
         return f,l
 
+    def send_message(self,chat_id, text):
+        self.api_messages.send_message(chat_id, text)
+        print('[NEW] Message sent.')
+
+    def get_api_messages(self,token):
+        self.api_messages = Bot(token)
+
 class TgObject(object):
 
-    __slots__ = ('config','funcs')
+    __slots__ = ('config','funcs','api_messages')
 
     def tg_hangler(self,update: Update, context: CallbackContext):
         print(update.message.to_dict())
@@ -37,14 +45,15 @@ class TgObject(object):
         self.config.data['tg']['admin'] = update.to_dict()['message']['from']['username']
         self.config.save_in_file()
         message_text = '@{} зарагестрирован админом'.format(update.to_dict()['message']['from']['username'])
-        update.message.reply_text(message_text)
+        self.funcs.send_message(0,message_text)
+        #update.message.reply_text(message_text)
 
     def __init__(self):
         self.config = confs.Config('password')
         self.funcs = Functions()
+        self.funcs.get_api_messages(self.config.data['tg']['tg_token'])
         print(self.config.data)
-        if self.config.data['tg']['admin'] == None:
-            print('[WARNING] У бота нет админа')
+        
         self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
         self.config.tg_dispatcher.add_handler(CommandHandler("admin", self.get_admin))
         self.config.tg_api.start_polling()

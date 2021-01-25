@@ -39,6 +39,8 @@ class Config(object):
         up = Updater(token, use_context = True)
         self.tg_dispatcher = up.dispatcher
         self.tg_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, tg_handler_func_name))
+        if self.data['tg']['admin'] == None:
+            print('[WARNING] У бота нет админа')
         return up
 
     def new_cfg(self):
