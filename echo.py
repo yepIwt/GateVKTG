@@ -26,7 +26,7 @@ class TgObject(object):
 
     __slots__ = ('config','funcs','api_messages')
 
-    def tg_hangler(self,update: Update, context: CallbackContext):
+    def tg_hangler(self, update: Update, context: CallbackContext):
         print(update.message.to_dict())
         if update.message.to_dict()['chat']['type'] == 'private':
             print('[NEW] Private message')
@@ -45,17 +45,35 @@ class TgObject(object):
         self.config.data['tg']['admin'] = update.to_dict()['message']['from']['username']
         self.config.save_in_file()
         message_text = '@{} зарагестрирован админом'.format(update.to_dict()['message']['from']['username'])
-        self.funcs.send_message(0,message_text)
-        #update.message.reply_text(message_text)
+        update.message.reply_text(message_text)
+
+    def register_chat(self, update: Update, context: CallbackContext):
+        if not update.message['chat']['type'] == 'group':
+            update.message.reply_text('Еблан, ты как лс будешь привязывать блять к системе?')
+        else:
+            msg = update.message['text'].split(' ')[-1]
+            if msg == 'chat':
+                update.message.reply_text('Ну ща зарегаю как вк-чат')
+                self.config.data['tg']['currChat'][0] = update.message['chat']['id']
+            elif msg == 'conv':
+                update.message.reply_text('Ну ща зарегаю как вк-диалог')
+                self.config.data['tg']['currConv'][0] = update.message['chat']['id']
+            else:
+                update.message.reply_text('/register WHAT???')
+        self.config.save_in_file()
 
     def __init__(self):
         self.config = confs.Config('password')
         self.funcs = Functions()
         self.funcs.get_api_messages(self.config.data['tg']['tg_token'])
         print(self.config.data)
-        
+        if not self.config.data['tg']['currConv']:
+            print('[WARNING] Не выбран чат для текущего вк-диалога')
+        if not self.config.data['tg']['currChat']:
+            print('[WARNING] Не выбран чат для текущего вк-чата')
         self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
         self.config.tg_dispatcher.add_handler(CommandHandler("admin", self.get_admin))
+        self.config.tg_dispatcher.add_handler(CommandHandler("register", self.register_chat))
         self.config.tg_api.start_polling()
         self.config.tg_api.idle()
 

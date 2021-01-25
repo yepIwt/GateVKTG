@@ -57,6 +57,8 @@ class Config(object):
             'tg':{
                 'tg_token': tg_token,
                 'admin': None,
+                'currConv': [0,0], # [tg_id, vk_id]
+                'currChat': [0,0], 
             }
         }
         self.crypter.enc(str(new_config))
