@@ -22,6 +22,9 @@ class Functions(object):
     def get_api_messages(self,token):
         self.api_messages = Bot(token)
 
+    def changeTitle(self, chat_id, new_title):
+        self.api_messages.setChatTitle(chat_id, new_title)
+
 class TgObject(object):
 
     __slots__ = ('config','funcs','api_messages')
