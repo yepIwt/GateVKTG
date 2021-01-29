@@ -65,7 +65,7 @@ class TgObject(object):
                 update.message.reply_text('/register WHAT???')
         self.config.save_in_file()
 
-    def show_chats(self, update: Update, context: CallbackContext):
+    def show_vk_chats(self, update: Update, context: CallbackContext):
         if not self.config.data['vk']['chats']:
             update.message.reply_text("Нет вк-чатов")
         else:
@@ -74,6 +74,16 @@ class TgObject(object):
                 name = self.config.vk_api.messages.getConversationsById(peer_ids=chat)['items'][0]['chat_settings']['title']
                 msg += '{} - {}\n'.format(a,name)
             update.message.reply_text(msg)
+
+    def get_vk_chat_by_id(self, update: Update, context: CallbackContext):
+        id = update.message['text'].split(' ')[-1]
+        try:
+            self.config.data['tg']['currChat'][1] = self.config.data['vk']['chats'][int(id)]
+            vk_chat_name = self.config.vk_api.messages.getConversationsById(peer_ids=self.config.data['vk']['chats'][int(id)])['items'][0]['chat_settings']['title']
+            msg = 'Определен вк-чат "{}", как тг-чат "{}"'.format(vk_chat_name,update.message['chat']['title'])
+            update.message.reply_text(msg)
+        except:
+            update.message.reply_text("Неверный локальный номер вк-чата. Смотри /chats")        
 
     def __init__(self):
         self.config = confs.Config('password')
@@ -87,7 +97,8 @@ class TgObject(object):
         self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
         self.config.tg_dispatcher.add_handler(CommandHandler("admin", self.get_admin))
         self.config.tg_dispatcher.add_handler(CommandHandler("register", self.register_chat))
-        self.config.tg_dispatcher.add_handler(CommandHandler("chats", self.show_chats))
+        self.config.tg_dispatcher.add_handler(CommandHandler("vk_chats", self.show_vk_chats))
+        self.config.tg_dispatcher.add_handler(CommandHandler("vk_chat", self.get_vk_chat_by_id))
         self.config.tg_api.start_polling()
         self.config.tg_api.idle()
 
