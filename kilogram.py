@@ -50,40 +50,59 @@ class TgObject(object):
         message_text = '@{} зарагестрирован админом'.format(update.to_dict()['message']['from']['username'])
         update.message.reply_text(message_text)
 
-    def register_chat(self, update: Update, context: CallbackContext):
+    def authorize_tg(self, update: Update, context: CallbackContext):
+        # /authorize chat 
+        # >> TG-CHAT NAME authorized as VK_CHAT_NAME
+        # /authorize conv
+        # >> TG-CHAT NAME authorized as VK_CONV_NAME
         if not update.message['chat']['type'] == 'group':
-            update.message.reply_text('Еблан, ты как лс будешь привязывать блять к системе?')
+            update.message.reply_text('Эту команду нужно писать в  ТГ-ЧАТ')
         else:
             msg = update.message['text'].split(' ')[-1]
             if msg == 'chat':
-                update.message.reply_text('Ну ща зарегаю как вк-чат')
+                update.message.reply_text('Этот чат определен как tg-conv')
                 self.config.data['tg']['currChat'][0] = update.message['chat']['id']
             elif msg == 'conv':
-                update.message.reply_text('Ну ща зарегаю как вк-диалог')
+                update.message.reply_text('Этот чат определен как tg-chat')
                 self.config.data['tg']['currConv'][0] = update.message['chat']['id']
             else:
-                update.message.reply_text('/register WHAT???')
+                update.message.reply_text('Недостаточно аргументов')
         self.config.save_in_file()
 
-    def show_vk_chats(self, update: Update, context: CallbackContext):
-        if not self.config.data['vk']['chats']:
-            update.message.reply_text("Нет вк-чатов")
+    def vk_handler(self, update: Update, context: CallbackContext):
+        args = update.message['text'].split(' ')
+        if len(args) == 1:
+            update.message.reply_text("Недостаточно аргументов")
         else:
-            msg = ''
-            for a,chat in list(enumerate(self.config.data['vk']['chats'])):
-                name = self.config.vk_api.messages.getConversationsById(peer_ids=chat)['items'][0]['chat_settings']['title']
-                msg += '{} - {}\n'.format(a,name)
-            update.message.reply_text(msg)
-
-    def get_vk_chat_by_id(self, update: Update, context: CallbackContext):
-        id = update.message['text'].split(' ')[-1]
-        try:
-            self.config.data['tg']['currChat'][1] = self.config.data['vk']['chats'][int(id)]
-            vk_chat_name = self.config.vk_api.messages.getConversationsById(peer_ids=self.config.data['vk']['chats'][int(id)])['items'][0]['chat_settings']['title']
-            msg = 'Определен вк-чат "{}", как тг-чат "{}"'.format(vk_chat_name,update.message['chat']['title'])
-            update.message.reply_text(msg)
-        except:
-            update.message.reply_text("Неверный локальный номер вк-чата. Смотри /chats")        
+            if args[1] == 'chats':
+                msg = ""
+                for a, chat_id in list(enumerate(self.config.data['vk']['chats'])):
+                    chat_title = self.config.vk_api.messages.getConversationsById(peer_ids=chat_id)['items'][0]['chat_settings']['title']
+                    msg += '{} - {}\n'.format(a, chat_title)
+                update.message.reply_text(msg)
+            elif args[1] == 'convs':
+                msg = ""
+                for a, conv_id in list(enumerate(self.config.data['vk']['convers'])):
+                    answ = self.config.vk_api.users.get(user_ids=conv_id, fields='first_name,last_name')
+                    conv_title = "{} {}".format(answ[0]['first_name'], answ[0]['last_name'])
+                    msg += '{} - {}\n'.format(a, conv_title)
+                update.message.reply_text(msg)
+            elif args[1] == 'chat':
+                if len(args) == 2:
+                    update.message.reply_text('Недостаточно аргументов')
+                else:
+                    self.config.data['tg']['currChat'][1] = self.config.data['vk']['chats'][int(args[2])] # TODO: Выход за пределы массива
+                    chat_title = self.config.vk_api.messages.getConversationsById(peer_ids = self.config.data['vk']['chats'][int(args[2])] )['items'][0]['chat_settings']['title']
+                    update.message.reply_text('Текущий (настроенный) тг-чат стал {}'.format(chat_title))
+            elif args[1] == 'conv':
+                if len(args) == 2:
+                    update.message.reply_text('Недостаточно аргументов')
+                else:
+                    self.config.data['tg']['currConv'][1] = self.config.data['vk']['convers'][int(args[2])] # TODO: Выход за пределы массива
+                    answ = self.config.vk_api.users.get(user_ids=self.config.data['vk']['convers'][int(args[2])], fields='first_name,last_name')
+                    conv_title = "{} {}".format(answ[0]['first_name'], answ[0]['last_name'])
+                    update.message.reply_text('Текущий (настроенный) тг-чат стал {}'.format(conv_title))
+            self.config.save_in_file()            
 
     def __init__(self):
         self.config = confs.Config('password')
@@ -94,11 +113,11 @@ class TgObject(object):
             print('[WARNING] Не выбран чат для текущего вк-диалога')
         if not self.config.data['tg']['currChat']:
             print('[WARNING] Не выбран чат для текущего вк-чата')
+        # TODO: Вынести диспатчеры в отдельный файл
         self.config.tg_api = self.config.get_api_tg(self.config.data['tg']['tg_token'],self.tg_hangler)
         self.config.tg_dispatcher.add_handler(CommandHandler("admin", self.get_admin))
-        self.config.tg_dispatcher.add_handler(CommandHandler("register", self.register_chat))
-        self.config.tg_dispatcher.add_handler(CommandHandler("vk_chats", self.show_vk_chats))
-        self.config.tg_dispatcher.add_handler(CommandHandler("vk_chat", self.get_vk_chat_by_id))
+        self.config.tg_dispatcher.add_handler(CommandHandler("authorize", self.authorize_tg))
+        self.config.tg_dispatcher.add_handler(CommandHandler("v", self.vk_handler))
         self.config.tg_api.start_polling()
         self.config.tg_api.idle()
 
