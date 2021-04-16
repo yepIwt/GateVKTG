@@ -2,9 +2,9 @@ import os
 import ast
 from .crypt import LetItCrypt
 from vk_api import VkApi
+import vk_api.exceptions
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-from Crypto.Cipher import DES
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 
 PEER_CONST = 2000000000
@@ -13,57 +13,70 @@ class Config(object):
 
     __slots__ = ('crypter','data','vk_api','tg_api','tg_dispatcher','longpoll')
 
-    def __init__(self,passw):
-        self.crypter = LetItCrypt(passw)
+    def __init__(self):
+        self.crypter = None
         if not os.path.exists('data'):
-            self.new_cfg()
-        config_as_str = self.crypter.dec()
-        self.data = ast.literal_eval(config_as_str)
-        self.__get_api_vk(self.data['vk']['vk_token'], self.data['vk']['group_id'])
-        self.data['vk']['convers'] = self.__get_vk_conversations(self.data['vk']['group_id'],[],0)
+            self.data = False
+        else:
+            self.data = True
 
-    def __get_api_vk(self,token: str,group_id: int) -> None:
-        session = VkApi(token=token)
-        self.longpoll = VkBotLongPoll(session,group_id)
-        self.vk_api = session.get_api()
+    def unlock_file(self, passw: str) -> bool:
+        self.crypter = LetItCrypt(passw)
+        try:
+            self.data = self.crypter.dec_cfg()
+        except:
+            print('Bad password for config')
 
-    def __get_vk_conversations(self, gid: int, convs: list, offset: int):
-        answ = self.vk_api.messages.getConversations(offset=offset,count=200,filter='all',group_id=gid)
-        if answ['items']:
+        if not self.data:
+            return False
+        else:
+            self.data = ast.literal_eval(self.data.decode())
+            return True
+
+    
+
+    def get_vk_convs(self, convs: list, offset: int) -> list:
+        api_answ = self.vk_api.messages.getConversations(offset=offset,count=200,filter='all',group_id=self.data['vk']['public_id'])
+        if api_answ['items']:
             for it in answ['items']:
                 convs.append(it['conversation']['peer']['id'])
-            self.__get_vk_conversations(gid,convs,200)
+            self.get_vk_convs(convs,200)
+        self.data['vk']['conversations'] = convs
         return convs
 
-    def get_api_tg(self, token: str, tg_handler_func_name):
+    def get_tg_api(self, token = None, tg_handler_func_name = None):
+        if not token:
+            token = self.data['tg']['token']
         up = Updater(token, use_context = True)
         self.tg_dispatcher = up.dispatcher
         self.tg_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, tg_handler_func_name))
-        if self.data['tg']['admin'] == None:
-            print('[WARNING] У бота нет админа')
         return up
 
-    def new_cfg(self):
-        vk_token = input('Введите токен для vk_api (vk admin token): ')
-        group_id = input('Введите id группы: ')
-        tg_token = input('Введите токен от телеграмм бота: ')
+    def new_cfg(self, passw: int, vk_public_token: int, vk_public_id: int, tg_token: int) -> None:
+        #vk_group_token = input('Введите токен для группы vk_api (vk admin token): ')
+        #vk_group_id = input('Введите id группы: ')
+        #tg_token = input('Введите токен от телеграмм бота: ')
         new_config = {
-            'vk':{
-                'vk_token': vk_token,
-                'group_id': group_id,
-                'convers':[],
-                'chats':[],
-            },
             'tg':{
-                'tg_token': tg_token,
-                'admin': None,
-                'currConv': [0,0], # [tg_id, vk_id]
-                'currChat': [0,0], 
-            }
+                'token' : tg_token,
+                'chat_id': None,
+                'conv_id': None ,
+                'bot_is_admin_in_chats': [0,0], # chat, conv
+            },
+            'vk':{
+                'public_token': vk_public_token,
+                'public_id': vk_public_id,
+                'conversations': [],
+                'chats': [],
+            },
+            'currentChat': None,
+            'currentConv': None,
         }
-        self.crypter.enc(str(new_config))
+        self.crypter = LetItCrypt(passw)
+        self.data = new_config
+        self.save_in_file()
 
     def save_in_file(self) -> None:
-        self.crypter.enc(str(self.data))
-        config_as_str = self.crypter.dec()
+        self.crypter.enc_cfg(str(self.data))
+        config_as_str = self.crypter.dec_cfg().decode()
         self.data = ast.literal_eval(config_as_str)
