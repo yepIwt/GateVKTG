@@ -1,11 +1,14 @@
 from vk_api import VkApi
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 
-def get_api(token, group_id) -> tuple:
+def get_api_not_async(token, group_id) -> tuple:
 	session = VkApi(token=token)
 	longpoll = VkBotLongPoll(session,group_id)
 	api = session.get_api()
 	return (longpoll, api)
+
+def get_api(token, group_id):
+	pass
 
 def id_to_name(api: VkApi, id: int, is_pub: bool):
 	if is_pub:
@@ -26,6 +29,3 @@ def get_vk_convs(api: VkApi, group_id: int): # TICKET1: Max 200 convs
 		id = conv['conversation']['peer']['id']
 		list.append((0 if typ == 'user' else 1,id))
 	return list
-
-
-

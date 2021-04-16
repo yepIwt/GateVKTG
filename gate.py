@@ -47,7 +47,7 @@ def start_polling_vk():
 			if event.message.peer_id > PEER_CONST:
 				chat_name = vkfuncs.peer_id_to_title(api, event.message.peer_id, group_id)
 				logger.info(f'[New message] from chat: {chat_name}')
-				
+
 				if event.message.peer_id not in config.data['vk']['chats']:
 					config.data['vk']['chats'].append(event.message.peer_id)
 					config.save_in_file()
