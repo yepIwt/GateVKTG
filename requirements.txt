@@ -1,0 +1,5 @@
+aiogram==2.9
+pycryptodome
+vkwave
+loguru
+asyncio
