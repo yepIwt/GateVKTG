@@ -25,8 +25,12 @@ logger.debug('VKAPI: registered bot')
 
 @bot2.message_handler()
 async def handle(event: bot2.SimpleBotEvent):
-    #await event.answer("hello world!")
-    await bot.send_message("", event.object.object.message.text)
+    usr_id = event.object.object.message.from_id #event.object.object.message.from_id
+    answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
+    f,l = answer.response[0].first_name, answer.response[0].last_name
+    notification_text = f'Новое сообщение ВКонтакте от пользователя {f} {l}\nТекст сообщения: {event.object.object.message.text}'
+    logger.debug(f'New message from VK: {f} {l}')
+    await bot.send_message(tg_id, notification_text)
 
 logger.debug('VKAPI: handlers ready')
 
