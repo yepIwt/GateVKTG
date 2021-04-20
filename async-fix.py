@@ -5,7 +5,6 @@ from aiogram.utils import executor
 
 from loguru import logger
 import asyncio
-import tgfuncs
 
 import confs
 c = confs.Config()
@@ -16,29 +15,21 @@ logger.info('Started')
 bot = Bot(token=c.data['tg']['token'])
 logger.debug('Telegram: got api')
 
-dp = Dispatcher(bot)
-tgfuncs.setup_handlers(dp)
-
-logger.debug('Telegram: dispachers ready')
-bot2 = SimpleLongPollBot(tokens=c.data['vk']['public_token'], group_id=c.data['vk']['public_id'])
+vk_bot = SimpleLongPollBot(tokens=c.data['vk']['public_token'], group_id=c.data['vk']['public_id'])
 logger.debug('VKAPI: registered bot')
 
-# @bot2.message_handler()
-# async def handle(event: bot2.SimpleBotEvent):
-#     usr_id = event.object.object.message.from_id #event.object.object.message.from_id
-#     answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
-#     f,l = answer.response[0].first_name, answer.response[0].last_name
-#     notification_text = f'Новое сообщение ВКонтакте от пользователя {f} {l}\nТекст сообщения: {event.object.object.message.text}'
-#     logger.debug(f'New message from VK: {f} {l}')
-#     await bot.send_message(tg_id, notification_text)
+import handlers
 
-import blueprints
-bot2.dispatcher.add_router(blueprints.all)
+dp = Dispatcher(bot)
+handlers.setup_tg_handlers(dp)
+logger.debug('Telegram: dispachers ready')
 
+handlers.setup_tg_bot_to_vk_handler(bot)
+vk_bot.dispatcher.add_router(handlers.vk_msg_from_chat)
 logger.debug('VKAPI: handlers ready')
 
 async def start_polling_vk():
-    await bot2.run()
+    await vk_bot.run()
     logger.debug('Polling Vk')
 
 dp.loop.create_task(start_polling_vk())
