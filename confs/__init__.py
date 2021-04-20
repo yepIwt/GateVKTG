@@ -60,6 +60,7 @@ class Config(object):
                 'chat_id': None,
                 'conv_id': None ,
                 'bot_is_admin_in_chats': [0,0], # chat, conv
+                'notificate_to': None, #tg id to push from vk
             },
             'vk':{
                 'public_token': vk_public_token,
