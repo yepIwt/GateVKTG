@@ -23,14 +23,17 @@ logger.debug('Telegram: dispachers ready')
 bot2 = SimpleLongPollBot(tokens=c.data['vk']['public_token'], group_id=c.data['vk']['public_id'])
 logger.debug('VKAPI: registered bot')
 
-@bot2.message_handler()
-async def handle(event: bot2.SimpleBotEvent):
-    usr_id = event.object.object.message.from_id #event.object.object.message.from_id
-    answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
-    f,l = answer.response[0].first_name, answer.response[0].last_name
-    notification_text = f'Новое сообщение ВКонтакте от пользователя {f} {l}\nТекст сообщения: {event.object.object.message.text}'
-    logger.debug(f'New message from VK: {f} {l}')
-    await bot.send_message(tg_id, notification_text)
+# @bot2.message_handler()
+# async def handle(event: bot2.SimpleBotEvent):
+#     usr_id = event.object.object.message.from_id #event.object.object.message.from_id
+#     answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
+#     f,l = answer.response[0].first_name, answer.response[0].last_name
+#     notification_text = f'Новое сообщение ВКонтакте от пользователя {f} {l}\nТекст сообщения: {event.object.object.message.text}'
+#     logger.debug(f'New message from VK: {f} {l}')
+#     await bot.send_message(tg_id, notification_text)
+
+import blueprints
+bot2.dispatcher.add_router(blueprints.all)
 
 logger.debug('VKAPI: handlers ready')
 
