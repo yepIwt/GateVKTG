@@ -25,6 +25,7 @@ dp = Dispatcher(bot)
 # Telegram
 handlers.setup_tg_handlers(dp)
 handlers.config_tg_hand(c.data)
+handlers.setup_vk_bot_to_tg_handler(vk_bot)
 logger.debug('Telegram: ready')
 
 # Vkontakte

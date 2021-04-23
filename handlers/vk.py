@@ -25,8 +25,8 @@ async def answer_chat(event: SimpleBotEvent):
     f,l = answer.response[0].first_name, answer.response[0].last_name
     api_answer = await event.api_ctx.messages.get_conversations_by_id(peer_ids=event.object.object.message.peer_id)
     chat_title = api_answer.response.items[0].chat_settings.title
-    notification_text = f'Сообщение из беседы {chat_title} от {f} {l}\n{event.object.object.message.text}'
-    logger.debug(f'New message from VK: {f} {l}')
+    notification_text = f'Сообщение из беседы {chat_title} от {f} {l}\n> {event.object.object.message.text}'
+    logger.debug(notification_text)
     await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_pm"))
@@ -35,8 +35,8 @@ async def answer_conv(event: SimpleBotEvent):
     usr_id = event.object.object.message.from_id #event.object.object.message.from_id
     answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
     f,l = answer.response[0].first_name, answer.response[0].last_name
-    notification_text = f'Личное сообщение от {f} {l}\n{event.object.object.message.text}'
-    logger.debug(f'New message from VK: {f} {l}')
+    notification_text = f'Личное сообщение от {f} {l}\n> {event.object.object.message.text}'
+    logger.debug(notification_text)
     await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
 
 #async tg_notification(id, )
