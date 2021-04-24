@@ -45,6 +45,15 @@ async def notif(msg: Message):
 				CONFIG_OBJ['tg']['notificate_to'] = new_notif
 	else:
 		await msg.answer(str(CONFIG_OBJ['tg']['notificate_to']))
+async def get_vk_convs():
+	global CONFIG_OBJ, VK_BOT
+	n = []
+	result = await VK_BOT.api_context.messages.get_conversations()
+	for conv in result.response.items:
+		result2 = await VK_BOT.api_context.users.get(user_ids=conv.conversation.peer.id, fields='first_name,last_name')
+		f,l = result2.response[0].first_name,result2.response[0].last_name
+		n.append([conv.conversation.peer.id,f,l])
+	return n
 
 async def vk_hand(msg: Message):
 	global CONFIG_OBJ, VK_BOT
@@ -57,21 +66,42 @@ async def vk_hand(msg: Message):
 			answ += f'{n}: {chat}'
 		await msg.answer(answ or 'no them')
 	elif args[1] == 'convs':
-		answ = ''
-		n = []
-		result = await VK_BOT.api_context.messages.get_conversations()
-		for conv in result.response.items:
-			result2 = await VK_BOT.api_context.users.get(user_ids=conv.conversation.peer.id, fields='first_name,last_name')
-			f,l = result2.response[0].first_name,result2.response[0].last_name
-			n.append([conv.conversation.peer.id,f,l])
+		CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
 		krasivaya_stroka = ""
-		for i,man in enumerate(n):
+		for i,man in enumerate(CONFIG_OBJ['vk']['conversations']):
 			krasivaya_stroka += f'{i+1}. {man[1]} {man[2]}\n'
 		await msg.answer(krasivaya_stroka or 'nothing')
 	elif args[1] == 'conv':
-		pass
+		if len(args) == 2:
+			await msg.answer('bad syntax')
+		else:
+			try:
+				arg = int(args[2])
+			except:
+				await msg.answer('bad syntax')
+			else:
+				try:
+					conv = CONFIG_OBJ['vk']['conversations'][arg-1]
+				except:
+					await msg.answer('net takogo conversationa. Try "/v convs"')
+				else:
+					await msg.answer(conv)
+					CONFIG_OBJ['currentConv'] = conv
 	elif args[1] == 'chat':
-		pass
+		if len(args) == 2:
+			await msg.answer('bad syntax')
+		else:
+			try:
+				arg = int(args[2])
+			except:
+				await msg.answer('bad syntax')
+			else:
+				try:
+					chat = CONFIG_OBJ['vk']['chats'][arg-1]
+				except:
+					await msg.answer('net takogo chata. Try "/v chats"')
+				else:
+					await msg.answer(chat)
 	else:
 		await msg.answer('bad syntax')
 
