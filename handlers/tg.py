@@ -105,6 +105,26 @@ async def vk_hand(msg: Message):
 	else:
 		await msg.answer('bad syntax')
 
+async def tg_register(msg: Message):
+	global CONFIG_OBJ
+	args = msg.text.split(' ')
+	if len(args) == 1:
+		await msg.answer('ne robit')
+	else:
+		if args[1] == 'chat':
+			if msg.chat.type == 'group' or 'supergroup':
+				await msg.answer(f'{msg.chat.title} зарегистрирован как тг-чат')
+				CONFIG_OBJ['tg']['chat_id'] = msg.chat.id
+			else:
+				await msg.answer('мне нужен чат1!!!!!!!!!!')
+		elif args[1] == 'conv':
+			if msg.chat.type == 'group' or 'supergroup':
+				await msg.answer(f'{msg.chat.title} зарегистрирован как тг-конв')
+				CONFIG_OBJ['tg']['conv_id'] = msg.chat.id
+			else:
+				await msg.answer('мне нужен чат1!!!!!!!!!!')
+		else:
+			await msg.answer('bad syntax')
 async def anything(msg: Message):
 	logger.info(f"{msg.from_user.full_name} send something. {msg['from']['id']} idk")
 	if msg.chat.id > 0:
@@ -118,4 +138,5 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(help, commands=['help'])
 	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_hand, commands=['v'])
+	dp.register_message_handler(tg_register, commands=['tg_reg'])
 	dp.register_message_handler(anything)
