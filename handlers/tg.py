@@ -5,12 +5,17 @@ from aiogram import Dispatcher
 
 CONFIG_OBJ = None
 VK_BOT = None
+TG_API = None
 
 def config_tg_hand(c = None):
 	global CONFIG_OBJ
 	if not c:
 		return CONFIG_OBJ
 	CONFIG_OBJ = c
+
+def setup_tg_api(tg_bot):
+	global TG_API
+	TG_API = tg_bot
 
 def setup_vk_bot_to_tg_handler(bot):
 	global VK_BOT
@@ -60,6 +65,13 @@ async def get_vk_chat_title(peer):
 	result = await VK_BOT.api_context.messages.get_conversations_by_id(peer_ids=peer) #разумнее делать один апи запрос на миллиард peer
 	return result.response.items[0].dict()['chat_settings']['title']
 
+async def change_current_title(chat: bool, title: str):
+	global TG_API,CONFIG_OBJ
+	if chat:
+		await TG_API.set_chat_title(CONFIG_OBJ['tg']['chat_id'],title)
+	else:
+		await TG_API.set_chat_title(CONFIG_OBJ['tg']['conv_id'],title)
+
 async def vk_hand(msg: Message):
 	global CONFIG_OBJ, VK_BOT
 	args = msg.text.split(' ')
@@ -98,6 +110,7 @@ async def vk_hand(msg: Message):
 						f,l = CONFIG_OBJ['currentConv'][1],CONFIG_OBJ['currentConv'][2]
 						await msg.answer(f'Current vk conversation changed: {f} {l} --> {nf} {nl}')
 					CONFIG_OBJ['currentConv'] = conv
+					await change_current_title(0, conv[1]+' '+ conv[2])
 	elif args[1] == 'chat':
 		if len(args) == 2:
 			await msg.answer('bad syntax')
@@ -119,6 +132,7 @@ async def vk_hand(msg: Message):
 						otitle = await get_vk_chat_title(CONFIG_OBJ['currentChat'])
 						await msg.answer(f'Current vk chat changed: {otitle} --> {ntitle}')
 					CONFIG_OBJ['currentChat'] = chat
+					await change_current_title(1, await get_vk_chat_title(chat))
 	else:
 		await msg.answer('bad syntax')
 
