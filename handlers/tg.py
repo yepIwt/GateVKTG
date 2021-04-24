@@ -157,12 +157,18 @@ async def tg_register(msg: Message):
 		else:
 			await msg.answer('bad syntax')
 async def anything(msg: Message):
-	logger.info(f"{msg.from_user.full_name} send something. {msg['from']['id']} idk")
-	if msg.chat.id > 0:
-		logger.debug('licnoe')
+	global CONFIG_OBJ,VK_BOT
+	if msg.chat.type == 'private':
+		await msg.text('не, бро, я только по командам')
 	else:
-		logger.debug('iz besedi')
-	await msg.answer(msg.text)
+		if msg.chat.id == CONFIG_OBJ['tg']['chat_id']:
+			await VK_BOT.api_context.messages.send(peer_id=CONFIG_OBJ['currentChat'],random_id=0,message=msg.text)
+			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущую беседу")
+		elif msg.chat.id == CONFIG_OBJ['tg']['conv_id']:
+			await VK_BOT.api_context.messages.send(user_ids=CONFIG_OBJ['currentConv'][0],random_id=0,message=msg.text)
+			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущему человеку")
+		else:
+			await msg.answer('ты чего тут забыл')
 
 def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
