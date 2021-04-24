@@ -55,6 +55,11 @@ async def get_vk_convs():
 		n.append([conv.conversation.peer.id,f,l])
 	return n
 
+async def get_vk_chat_title(peer):
+	global vk_bot
+	result = await VK_BOT.api_context.messages.get_conversations_by_id(peer_ids=peer) #разумнее делать один апи запрос на миллиард peer
+	return result.response.items[0].dict()['chat_settings']['title']
+
 async def vk_hand(msg: Message):
 	global CONFIG_OBJ, VK_BOT
 	args = msg.text.split(' ')
@@ -62,8 +67,9 @@ async def vk_hand(msg: Message):
 		await msg.answer('ne robit')
 	elif args[1] == 'chats':
 		answ = ''
-		for n,chat in enumerate(CONFIG_OBJ['vk']['chats']):
-			answ += f'{n}: {chat}'
+		for n,peer in enumerate(CONFIG_OBJ['vk']['chats']):
+			chat_title = await get_vk_chat_title(peer)
+			answ += f'{n+1}: {chat_title}\n'
 		await msg.answer(answ or 'no them')
 	elif args[1] == 'convs':
 		CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
@@ -85,7 +91,12 @@ async def vk_hand(msg: Message):
 				except:
 					await msg.answer('net takogo conversationa. Try "/v convs"')
 				else:
-					await msg.answer(conv)
+					nf,nl = conv[1],conv[2]
+					if not CONFIG_OBJ['currentConv']:
+						await msg.answer(f'Current vk conversation setted: {nf} {nl}')
+					else:
+						f,l = CONFIG_OBJ['currentConv'][1],CONFIG_OBJ['currentConv'][2]
+						await msg.answer(f'Current vk conversation changed: {f} {l} --> {nf} {nl}')
 					CONFIG_OBJ['currentConv'] = conv
 	elif args[1] == 'chat':
 		if len(args) == 2:
@@ -101,7 +112,13 @@ async def vk_hand(msg: Message):
 				except:
 					await msg.answer('net takogo chata. Try "/v chats"')
 				else:
-					await msg.answer(chat)
+					ntitle = await get_vk_chat_title(chat)
+					if not CONFIG_OBJ['currentChat']:
+						await msg.answer(f'Current vk chat now setted: {ntitle}')
+					else:
+						otitle = await get_vk_chat_title(CONFIG_OBJ['currentChat'])
+						await msg.answer(f'Current vk chat changed: {otitle} --> {ntitle}')
+					CONFIG_OBJ['currentChat'] = chat
 	else:
 		await msg.answer('bad syntax')
 
