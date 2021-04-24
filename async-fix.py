@@ -44,4 +44,5 @@ executor.start_polling(dp, skip_updates=True)
 
 #Do after closing
 c.data = handlers.config_tg_hand()
+c.data['vk']['chats'] = handlers.config_vk_hand()['vk']['chats']
 c.save_in_file()

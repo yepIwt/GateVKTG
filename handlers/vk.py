@@ -20,6 +20,9 @@ def setup_tg_bot_to_vk_handler(new_global):
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
 async def answer_chat(event: SimpleBotEvent):
     global tg_bot, CONFIG_OBJ
+    #
+    if event.object.object.message.peer_id not in CONFIG_OBJ['vk']['chats']:
+        CONFIG_OBJ['vk']['chats'].append(event.object.object.message.peer_id)
     usr_id = event.object.object.message.from_id #event.object.object.message.from_id
     answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
     f,l = answer.response[0].first_name, answer.response[0].last_name
