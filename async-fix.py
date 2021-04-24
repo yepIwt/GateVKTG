@@ -8,7 +8,15 @@ import asyncio
 
 import confs
 c = confs.Config()
-c.unlock_file('123')
+if not c.data:
+	new_passw = input('Введите новый пароль для конфига: ')
+	new_vk_token = input('Введите вк токен: ')
+	new_group_id = input('Введите вк айди группы: ')
+	new_tg_token = input('Введите тг-бот токен: ')
+	c.new_cfg(new_passw,new_vk_token,new_group_id,new_tg_token)
+else:
+	passw = input('Введите пароль от конфига:') # passw = 123
+	c.unlock_file(passw)
 
 logger.info('Started')
 
@@ -20,7 +28,6 @@ vk_bot = SimpleLongPollBot(tokens=c.data['vk']['public_token'], group_id=c.data[
 logger.debug('VKAPI: registered bot')
 
 import handlers
-
 
 # Telegram
 handlers.setup_tg_handlers(dp)
