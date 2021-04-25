@@ -43,10 +43,10 @@ async def answer_conv(event: SimpleBotEvent):
     usr_id = event.object.object.message.from_id #event.object.object.message.from_id
     answer = await event.api_ctx.users.get(user_ids=usr_id,fields='first_name,last_name')
     f,l = answer.response[0].first_name, answer.response[0].last_name
-    
-    if event.object.object.message.peer_id != CONFIG_OBJ['currentConv'][0]:
+    if not CONFIG_OBJ['currentConv']:
         notification_text = f'Личное сообщение от {f} {l}\n{event.object.object.message.text}'
         logger.debug(notification_text)
         await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
     else:
-        await tg_bot.send_message(CONFIG_OBJ['tg']['conv_id'],f"{event.object.object.message.text}")
+        if event.object.object.message.peer_id == CONFIG_OBJ['currentConv'][0]:
+            await tg_bot.send_message(CONFIG_OBJ['tg']['conv_id'],f"{event.object.object.message.text}")
