@@ -1,4 +1,5 @@
 import confs
+import requests
 from loguru import logger
 from aiogram.types import Message
 from aiogram import Dispatcher
@@ -111,6 +112,7 @@ async def vk_hand(msg: Message):
 						await msg.answer(f'Current vk conversation changed: {f} {l} --> {nf} {nl}')
 					CONFIG_OBJ['currentConv'] = conv
 					await change_current_title(0, conv[1]+' '+ conv[2])
+					await set_tg_pic(conv[0])
 	elif args[1] == 'chat':
 		if len(args) == 2:
 			await msg.answer('bad syntax')
@@ -169,6 +171,21 @@ async def anything(msg: Message):
 			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущему человеку")
 		else:
 			await msg.answer('ты чего тут забыл')
+
+async def get_vk_conv_avatar(id):
+	global VK_BOT
+	answer = await VK_BOT.api_context.users.get(user_ids=id,fields="photo_max_orig")
+	url = answer.response[0].photo_max_orig
+	r = requests.get(url)
+	f = open('conv.jpg','wb')
+	f.write(r.content)
+	f.close()
+
+async def set_tg_pic(id: int):
+	global TG_API, CONFIG_OBJ
+	await get_vk_conv_avatar(id)
+	f = open('conv.jpg','rb')
+	await TG_API.set_chat_photo(CONFIG_OBJ['tg']['conv_id'],f)
 
 def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
