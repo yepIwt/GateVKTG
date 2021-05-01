@@ -1,5 +1,6 @@
 import confs
 import requests
+from vkwave.bots import PhotoUploader # для отправки файлов
 from loguru import logger
 from aiogram.types import Message
 from aiogram import Dispatcher
@@ -62,7 +63,7 @@ async def get_vk_convs():
 	return n
 
 async def get_vk_chat_title(peer):
-	global vk_bot
+	global VK_BOT
 	result = await VK_BOT.api_context.messages.get_conversations_by_id(peer_ids=peer) #разумнее делать один апи запрос на миллиард peer
 	return result.response.items[0].dict()['chat_settings']['title']
 
@@ -158,16 +159,35 @@ async def tg_register(msg: Message):
 				await msg.answer('мне нужен чат1!!!!!!!!!!')
 		else:
 			await msg.answer('bad syntax')
+
+async def catch_attachments(msg,peer_id):
+	global TG_API,VK_BOT
+	if msg.photo:
+		logger.debug('Catched pic from tg')
+		await TG_API.download_file_by_id(msg.photo[-1].file_id,'photo.jpg') #ticket: пока только одно вложение
+		vk_uploader = PhotoUploader(VK_BOT.api_context)
+		attachment_info = await vk_uploader.get_attachment_from_path(peer_id,'photo.jpg')
+		return attachment_info
+	else:
+		logger.debug('Tried to catch attachments. No them.')
+		return None
+
 async def anything(msg: Message):
 	global CONFIG_OBJ,VK_BOT
 	if msg.chat.type == 'private':
 		await msg.text('не, бро, я только по командам')
 	else:
 		if msg.chat.id == CONFIG_OBJ['tg']['chat_id']:
-			await VK_BOT.api_context.messages.send(peer_id=CONFIG_OBJ['currentChat'],random_id=0,message=msg.text)
+			attachs = await catch_attachments(msg,CONFIG_OBJ['currentChat'])
+			if attachs:
+				msg.text = msg.caption
+			await VK_BOT.api_context.messages.send(peer_id=CONFIG_OBJ['currentChat'],random_id=0,message=msg.text,attachment=attachs)
 			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущую беседу")
 		elif msg.chat.id == CONFIG_OBJ['tg']['conv_id']:
-			await VK_BOT.api_context.messages.send(user_ids=CONFIG_OBJ['currentConv'][0],random_id=0,message=msg.text)
+			attachs = await catch_attachments(msg,CONFIG_OBJ['currentConv'][0])
+			if attachs:
+				msg.text = msg.caption
+			await VK_BOT.api_context.messages.send(user_ids=CONFIG_OBJ['currentConv'][0],random_id=0,message=msg.text,attachment=attachs)
 			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущему человеку")
 		else:
 			await msg.answer('ты чего тут забыл')
@@ -193,4 +213,4 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_hand, commands=['v'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
-	dp.register_message_handler(anything)
+	dp.register_message_handler(anything, content_types=['photo','text'])
