@@ -1,6 +1,6 @@
 import confs
 import requests
-from vkwave.bots import PhotoUploader # для отправки файлов
+import vkwave.bots
 from loguru import logger
 from aiogram.types import Message
 from aiogram import Dispatcher
@@ -163,14 +163,17 @@ async def tg_register(msg: Message):
 async def catch_attachments(msg,peer_id):
 	global TG_API,VK_BOT
 	if msg.photo:
-		logger.debug('Catched pic from tg')
-		await TG_API.download_file_by_id(msg.photo[-1].file_id,'photo.jpg') #ticket: пока только одно вложение
-		vk_uploader = PhotoUploader(VK_BOT.api_context)
-		attachment_info = await vk_uploader.get_attachment_from_path(peer_id,'photo.jpg')
-		return attachment_info
+		file_id = msg.photo[-1].file_id
+		file_name = 'photo.jpg'
+		uploader = vkwave.bots.PhotoUploader(VK_BOT.api_context)
+	elif msg.document:
+		file_id = msg.document.file_id
+		file_name = msg.document.file_name
+		uploader = vkwave.bots.DocUploader(VK_BOT.api_context)
 	else:
-		logger.debug('Tried to catch attachments. No them.')
 		return None
+	await TG_API.download_file_by_id(file_id, file_name) #ticket: https://bit.ly/3tsrbp6
+	return await uploader.get_attachment_from_path(peer_id, file_name)
 
 async def anything(msg: Message):
 	global CONFIG_OBJ,VK_BOT
@@ -213,4 +216,4 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_hand, commands=['v'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
-	dp.register_message_handler(anything, content_types=['photo','text'])
+	dp.register_message_handler(anything, content_types=['photo','document','text'])
