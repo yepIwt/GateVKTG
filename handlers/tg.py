@@ -2,14 +2,15 @@ import confs
 import requests
 import vkwave.bots
 from loguru import logger
-from aiogram.types import Message
+import moviepy.editor as mp
 from aiogram import Dispatcher
+from aiogram.types import Message
 
 CONFIG_OBJ = None
 VK_BOT = None
 TG_API = None
 
-def config_tg_hand(c = None):
+def config_tg_hand(c: confs.Config = None):
 	global CONFIG_OBJ
 	if not c:
 		return CONFIG_OBJ
@@ -166,6 +167,12 @@ async def catch_attachments(msg,peer_id):
 		file_id = msg.photo[-1].file_id
 		file_name = 'photo.jpg'
 		uploader = vkwave.bots.PhotoUploader(VK_BOT.api_context)
+	elif msg.animation:
+		await TG_API.download_file_by_id(msg.animation.file_id,'animation.mp4')
+		clip = mp.VideoFileClip('animation.mp4')
+		clip.write_gif('animation.gif',logger=None)
+		uploader = vkwave.bots.DocUploader(VK_BOT.api_context)
+		return await uploader.get_attachment_from_path(peer_id, 'animation.gif')
 	elif msg.document:
 		file_id = msg.document.file_id
 		file_name = msg.document.file_name
@@ -216,4 +223,4 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_hand, commands=['v'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
-	dp.register_message_handler(anything, content_types=['photo','document','text'])
+	dp.register_message_handler(anything, content_types=['photo','document','animation','text'])
