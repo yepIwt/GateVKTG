@@ -1,13 +1,16 @@
 import confs
+import requests
+import vkwave.bots
 from loguru import logger
-from aiogram.types import Message
+import moviepy.editor as mp
 from aiogram import Dispatcher
+from aiogram.types import Message
 
 CONFIG_OBJ = None
 VK_BOT = None
 TG_API = None
 
-def config_tg_hand(c = None):
+def config_tg_hand(c: confs.Config = None):
 	global CONFIG_OBJ
 	if not c:
 		return CONFIG_OBJ
@@ -61,7 +64,7 @@ async def get_vk_convs():
 	return n
 
 async def get_vk_chat_title(peer):
-	global vk_bot
+	global VK_BOT
 	result = await VK_BOT.api_context.messages.get_conversations_by_id(peer_ids=peer) #разумнее делать один апи запрос на миллиард peer
 	return result.response.items[0].dict()['chat_settings']['title']
 
@@ -111,6 +114,7 @@ async def vk_hand(msg: Message):
 						await msg.answer(f'Current vk conversation changed: {f} {l} --> {nf} {nl}')
 					CONFIG_OBJ['currentConv'] = conv
 					await change_current_title(0, conv[1]+' '+ conv[2])
+					await set_tg_pic(conv[0])
 	elif args[1] == 'chat':
 		if len(args) == 2:
 			await msg.answer('bad syntax')
@@ -156,19 +160,62 @@ async def tg_register(msg: Message):
 				await msg.answer('мне нужен чат1!!!!!!!!!!')
 		else:
 			await msg.answer('bad syntax')
+
+async def catch_attachments(msg,peer_id):
+	global TG_API,VK_BOT
+	if msg.photo:
+		file_id = msg.photo[-1].file_id
+		file_name = 'photo.jpg'
+		uploader = vkwave.bots.PhotoUploader(VK_BOT.api_context)
+	elif msg.animation:
+		await TG_API.download_file_by_id(msg.animation.file_id,'animation.mp4')
+		clip = mp.VideoFileClip('animation.mp4')
+		clip.write_gif('animation.gif',logger=None)
+		uploader = vkwave.bots.DocUploader(VK_BOT.api_context)
+		return await uploader.get_attachment_from_path(peer_id, 'animation.gif')
+	elif msg.document:
+		file_id = msg.document.file_id
+		file_name = msg.document.file_name
+		uploader = vkwave.bots.DocUploader(VK_BOT.api_context)
+	else:
+		return None
+	await TG_API.download_file_by_id(file_id, file_name) #ticket: https://bit.ly/3tsrbp6
+	return await uploader.get_attachment_from_path(peer_id, file_name)
+
 async def anything(msg: Message):
 	global CONFIG_OBJ,VK_BOT
 	if msg.chat.type == 'private':
 		await msg.text('не, бро, я только по командам')
 	else:
 		if msg.chat.id == CONFIG_OBJ['tg']['chat_id']:
-			await VK_BOT.api_context.messages.send(peer_id=CONFIG_OBJ['currentChat'],random_id=0,message=msg.text)
+			attachs = await catch_attachments(msg,CONFIG_OBJ['currentChat'])
+			if attachs:
+				msg.text = msg.caption
+			await VK_BOT.api_context.messages.send(peer_id=CONFIG_OBJ['currentChat'],random_id=0,message=msg.text,attachment=attachs)
 			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущую беседу")
 		elif msg.chat.id == CONFIG_OBJ['tg']['conv_id']:
-			await VK_BOT.api_context.messages.send(user_ids=CONFIG_OBJ['currentConv'][0],random_id=0,message=msg.text)
+			attachs = await catch_attachments(msg,CONFIG_OBJ['currentConv'][0])
+			if attachs:
+				msg.text = msg.caption
+			await VK_BOT.api_context.messages.send(user_ids=CONFIG_OBJ['currentConv'][0],random_id=0,message=msg.text,attachment=attachs)
 			logger.info(f"{msg.from_user.full_name} send {msg.text} в текущему человеку")
 		else:
 			await msg.answer('ты чего тут забыл')
+
+async def get_vk_conv_avatar(id):
+	global VK_BOT
+	answer = await VK_BOT.api_context.users.get(user_ids=id,fields="photo_max_orig")
+	url = answer.response[0].photo_max_orig
+	r = requests.get(url)
+	f = open('conv.jpg','wb')
+	f.write(r.content)
+	f.close()
+
+async def set_tg_pic(id: int):
+	global TG_API, CONFIG_OBJ
+	await get_vk_conv_avatar(id)
+	f = open('conv.jpg','rb')
+	await TG_API.set_chat_photo(CONFIG_OBJ['tg']['conv_id'],f)
 
 def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
@@ -176,4 +223,4 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_hand, commands=['v'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
-	dp.register_message_handler(anything)
+	dp.register_message_handler(anything, content_types=['photo','document','animation','text'])
