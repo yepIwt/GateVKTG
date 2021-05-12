@@ -3,3 +3,4 @@ pycryptodome
 vkwave
 loguru
 asyncio
+moviepy
