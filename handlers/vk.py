@@ -1,6 +1,8 @@
 from vkwave.bots import DefaultRouter, SimpleBotEvent, simple_bot_message_handler
+from vkwave.types.objects import MessagesMessageAttachmentType
 from vkwave.bots.core.dispatching import filters
 from loguru import logger
+import requests
 
 vk_msg_from_chat = DefaultRouter()
 
@@ -33,11 +35,30 @@ async def chat_title(event: SimpleBotEvent) -> str:
     chat_title = api_answer.response.items[0].chat_settings.title
     return chat_title
 
-async def send_notification_into_telegram(fl: tuple, message_text: str, chat_title=None):
+async def send_notification_into_telegram(fl: tuple, message_text: str, chat_title = None, attachments = None):
     global tg_bot
-    notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {message_text}"
-    await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
+    if attachments == 'voice':
+        voice_msg = open('voice.ogg','rb')
+        notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: Голосовое сообщение"
+        await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
+        await tg_bot.send_voice(CONFIG_OBJ['tg']['notificate_to'], voice_msg)
+    else:
+        notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {message_text}"
+        await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
     logger.debug(notification_text)
+
+async def get_voice_message(event: SimpleBotEvent):
+    link_to_voice_msg = event.object.object.message.attachments[0].audio_message.link_ogg
+    r = requests.get(link_to_voice_msg)
+    f = open('voice.ogg','wb')
+    f.write(r.content)
+    f.close()
+
+async def catch_attachments(event: SimpleBotEvent):
+    if event.object.object.message.attachments[0].type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
+        await get_voice_message(event)
+        return 'voice'
+    return None
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
 async def answer_chat(event: SimpleBotEvent):
@@ -46,17 +67,32 @@ async def answer_chat(event: SimpleBotEvent):
 
     first_last_names = await first_and_last_names_sender(event)
 
+    attachments = await catch_attachments(event)
+
     if event.object.object.message.peer_id != CONFIG_OBJ['currentChat']:
         await send_notification_into_telegram(
             fl = first_last_names,
             message_text = event.object.object.message.text,
-            chat_title = await chat_title(event)
+            chat_title = await chat_title(event),
+            attachments = attachments
         )
     else:
-        await tg_bot.send_message(
-            CONFIG_OBJ['tg']['chat_id'], 
-            f'{first_last_names[0]} {first_last_names[1]}:\n{event.object.object.message.text}'
-        )
+        if attachments:
+            await tg_bot.send_message(
+                CONFIG_OBJ['tg']['chat_id'],
+                f'{first_last_names[0]} {first_last_names[1]}:\nГолосовое сообщение'
+            )
+
+            voice_msg = open('voice.ogg','rb')
+            await tg_bot.send_voice(
+                CONFIG_OBJ['tg']['chat_id'],
+                voice_msg
+            )
+        else:
+            await tg_bot.send_message(
+                CONFIG_OBJ['tg']['chat_id'],
+                f'{first_last_names[0]} {first_last_names[1]}:\n{event.object.object.message.text}'
+            )
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_pm"))
 async def answer_conv(event: SimpleBotEvent):
@@ -64,14 +100,23 @@ async def answer_conv(event: SimpleBotEvent):
 
     first_last_names = await first_and_last_names_sender(event)
 
+    attachments = await catch_attachments(event)
+
     if (type(CONFIG_OBJ['currentConv']) == list) and (event.object.object.message.peer_id == CONFIG_OBJ['currentConv'][0]):
-        await tg_bot.send_message(
-            CONFIG_OBJ['tg']['conv_id'],
-            f"{event.object.object.message.text}"
-        )
+        if attachments == 'voice':
+            voice = open('voice.ogg','rb')
+            await tg_bot.send_voice(
+                CONFIG_OBJ['tg']['conv_id'],
+                voice
+            )
+        else:
+            await tg_bot.send_message(
+                CONFIG_OBJ['tg']['conv_id'],
+                f"{event.object.object.message.text}"
+            )
     else:
         await send_notification_into_telegram(
             fl = first_last_names,
-            message_text = event.object.object.message.text
+            message_text = event.object.object.message.text,
+            attachments='voice',
         )
-        
