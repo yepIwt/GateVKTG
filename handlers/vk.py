@@ -55,9 +55,10 @@ async def get_voice_message(event: SimpleBotEvent):
     f.close()
 
 async def catch_attachments(event: SimpleBotEvent):
-    if event.object.object.message.attachments[0].type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
-        await get_voice_message(event)
-        return 'voice'
+    if event.object.object.message.attachments:
+        if event.object.object.message.attachments[0].type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
+            await get_voice_message(event)
+            return 'voice'
     return None
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
