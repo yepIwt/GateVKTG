@@ -2,6 +2,7 @@ from vkwave.bots import DefaultRouter, SimpleBotEvent, simple_bot_message_handle
 from vkwave.types.objects import MessagesMessageAttachmentType
 from vkwave.bots.core.dispatching import filters
 from loguru import logger
+import random
 import requests
 
 vk_msg_from_chat = DefaultRouter()
@@ -37,33 +38,71 @@ async def chat_title(event: SimpleBotEvent) -> str:
 
 async def send_notification_into_telegram(fl: tuple, message_text: str, chat_title = None, attachments = None):
     global tg_bot
-    if attachments == 'voice':
-        voice_msg = open('voice.ogg','rb')
-        notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: Голосовое сообщение"
-        await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
-        await tg_bot.send_voice(CONFIG_OBJ['tg']['notificate_to'], voice_msg)
+    if attachments:
+        for catched in attachments:
+            if catched['type'] == 'voice':
+                await tg_bot.send_voice(
+                    chat_id = CONFIG_OBJ['tg']['notificate_to'],
+                    voice = open(catched['filename'],'rb'),
+                    caption = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {catched['caption'] or ' '}"
+                )
+            elif catched['type'] == 'photo':
+                await tg_bot.send_photo(
+                    chat_id = CONFIG_OBJ['tg']['notificate_to'],
+                    photo = open(catched['filename'],'rb'),
+                    caption = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {catched['caption'] or ' '}"
+                )
     else:
         notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {message_text}"
         await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
-    logger.debug(notification_text)
+    logger.debug('Отправлено уведомление')
 
-async def get_voice_message(event: SimpleBotEvent):
-    link_to_voice_msg = event.object.object.message.attachments[0].audio_message.link_ogg
+async def download_voice_message(attachment: SimpleBotEvent):
+    link_to_voice_msg = attachment.audio_message.link_ogg
     r = requests.get(link_to_voice_msg)
-    f = open('voice.ogg','wb')
-    f.write(r.content)
-    f.close()
+    with open('voice.ogg','wb') as f:
+        f.write(r.content)
+    return 'voice.ogg'
+
+async def download_photo(attachment: SimpleBotEvent):
+    link_to_photo = attachment.photo.sizes[-1].url
+    r = requests.get(link_to_photo)
+    filename = str(random.randint(0,9999)) + '.jpg'
+    with open(filename,'wb') as f:
+        f.write(r.content)
+    return filename
 
 async def catch_attachments(event: SimpleBotEvent):
+    catched_attachs = []
     if event.object.object.message.attachments:
-        if event.object.object.message.attachments[0].type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
-            await get_voice_message(event)
-            return 'voice'
-    return None
+        for attach in event.object.object.message.attachments:
+            if attach.type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
+                catched_attachs.append({
+                        'type':'audio',
+                        'caption': None,
+                        'filename': await download_voice_message(attach)
+                })
+            elif attach.type == MessagesMessageAttachmentType.PHOTO:
+                catched_attachs.append({
+                        'type':'photo',
+                        'caption': event.object.object.message.text,
+                        'filename': await download_photo(attach)
+                })
+    return catched_attachs
+
+async def send_tg_photo(filename: str, chat_id: int, caption = None):
+    global tg_bot
+    file = open(filename,'rb')
+    await tg_bot.send_photo(
+        chat_id = chat_id,
+        photo = file,
+        caption = caption 
+    )
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
 async def answer_chat(event: SimpleBotEvent):
     global tg_bot, CONFIG_OBJ
+
     check_if_chat_in_config(event.object.object.message.peer_id)
 
     first_last_names = await first_and_last_names_sender(event)
@@ -77,22 +116,23 @@ async def answer_chat(event: SimpleBotEvent):
             chat_title = await chat_title(event),
             attachments = attachments
         )
-    else:
-        if attachments:
+    else: # Я отправил в курент чат и он активен
+        for catched in attachments:
+            if catched['type'] == 'voice':
+                await tg_bot.send_voice(
+                    chat_id = CONFIG_OBJ['tg']['chat_id'],
+                    voice = open(catched['filename'],'rb'),
+                )
+            elif catched['type'] == 'photo':
+                await tg_bot.send_photo(
+                    chat_id = CONFIG_OBJ['tg']['chat_id'],
+                    photo = open(catched['filename'],'rb'),
+                    caption = catched['caption']
+                )
+        if not attachments:
             await tg_bot.send_message(
-                CONFIG_OBJ['tg']['chat_id'],
-                f'{first_last_names[0]} {first_last_names[1]}:\nГолосовое сообщение'
-            )
-
-            voice_msg = open('voice.ogg','rb')
-            await tg_bot.send_voice(
-                CONFIG_OBJ['tg']['chat_id'],
-                voice_msg
-            )
-        else:
-            await tg_bot.send_message(
-                CONFIG_OBJ['tg']['chat_id'],
-                f'{first_last_names[0]} {first_last_names[1]}:\n{event.object.object.message.text}'
+                chat_id = CONFIG_OBJ['tg']['chat_id'],
+                text = f'{first_last_names[0]} {first_last_names[1]}:\n{event.object.object.message.text}'
             )
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_pm"))
@@ -104,20 +144,27 @@ async def answer_conv(event: SimpleBotEvent):
     attachments = await catch_attachments(event)
 
     if (type(CONFIG_OBJ['currentConv']) == list) and (event.object.object.message.peer_id == CONFIG_OBJ['currentConv'][0]):
-        if attachments == 'voice':
-            voice = open('voice.ogg','rb')
-            await tg_bot.send_voice(
-                CONFIG_OBJ['tg']['conv_id'],
-                voice
-            )
+        if attachments:
+            for catched in attachments:
+                if catched['type'] == 'voice':
+                    await tg_bot.send_voice(
+                        chat_id = CONFIG_OBJ['tg']['conv_id'],
+                        voice = open(catched['filename'],'rb'),
+                    )
+                elif catched['type'] == 'photo':
+                    await tg_bot.send_photo(
+                        chat_id = CONFIG_OBJ['tg']['conv_id'],
+                        photo = open(catched['filename'],'rb'),
+                        caption = catched['caption']
+                    )
         else:
             await tg_bot.send_message(
-                CONFIG_OBJ['tg']['conv_id'],
-                f"{event.object.object.message.text}"
+                chat_id = CONFIG_OBJ['tg']['conv_id'],
+                text = f'{event.object.object.message.text}'
             )
     else:
         await send_notification_into_telegram(
             fl = first_last_names,
             message_text = event.object.object.message.text,
-            attachments='voice',
+            attachments=attachments,
         )
