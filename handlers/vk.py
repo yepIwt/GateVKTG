@@ -72,23 +72,36 @@ async def download_photo(attachment: SimpleBotEvent):
         f.write(r.content)
     return filename
 
+async def download_doc(attachment: SimpleBotEvent):
+    link_to_file = attachment.doc.url
+    r = requests.get(link_to_file)
+    filename = attachment.doc.title
+    with open(filename,'wb') as f:
+        f.write(r.content)
+    return filename
+
 async def catch_attachments(event: SimpleBotEvent):
     catched_attachs = []
     if event.object.object.message.attachments:
         for attach in event.object.object.message.attachments:
             if attach.type == MessagesMessageAttachmentType.AUDIO_MESSAGE:
-                n = {
+                catched_attachs.append({
                         'type':'voice',
                         'caption': None,
                         'filename': download_voice_message(attach)
-                }
-                catched_attachs.append(n)
+                })
 
             elif attach.type == MessagesMessageAttachmentType.PHOTO:
                 catched_attachs.append({
                         'type':'photo',
                         'caption': event.object.object.message.text,
                         'filename': await download_photo(attach)
+                })
+            elif attach.type == MessagesMessageAttachmentType.DOC:
+                catched_attachs.append({
+                        'type': 'doc',
+                        'caption': event.object.object.message.text,
+                        'filename': await download_doc(attach)
                 })
     return catched_attachs
 
@@ -106,12 +119,22 @@ async def send_tg_photo(filename: str, chat_id: int, caption = None):
         photo = open(filename,'rb'),
         caption = caption
     )
+
+async def send_tg_doc(filename: str, chat_id: int, caption = None):
+    global tg_bot
+    await tg_bot.send_document(
+        chat_id = chat_id,
+        document = open(filename,'rb')
+    )
+
 async def send_catched_attachments(attachments, send_to):
     for catched in attachments:
         if catched['type'] == 'voice':
             await send_tg_voice(catched['filename'], send_to) # CONFIG_OBJ['tg']['chat_id']
         elif catched['type'] == 'photo':
             await send_tg_photo(catched['filename'], send_to, catched['caption'])
+        elif catched['type'] == 'doc':
+            await send_tg_doc(catched['filename'], send_to, catched['caption'])
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
 async def answer_chat(event: SimpleBotEvent):
