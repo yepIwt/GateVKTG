@@ -122,10 +122,16 @@ async def send_tg_photo(filename: str, chat_id: int, caption = None):
 
 async def send_tg_doc(filename: str, chat_id: int, caption = None):
     global tg_bot
-    await tg_bot.send_document(
+    info = await tg_bot.send_document(
         chat_id = chat_id,
         document = open(filename,'rb')
     )
+    if caption:
+        await tg_bot.edit_message_caption(
+            chat_id = chat_id,
+            message_id = info.message_id,
+            caption = caption
+        )
 
 async def send_catched_attachments(attachments, send_to):
     for catched in attachments:
