@@ -3,7 +3,7 @@ import requests
 import vkwave.bots
 from loguru import logger
 import moviepy.editor as mp
-from aiogram import Dispatcher
+from aiogram import Dispatcher, types
 from aiogram.types import Message
 
 START_MSG = 'Привет!\nЯ нужен для отправки сообщений из Вконтакте и Телеграма.\n*Связист*, проще говоря :)'
@@ -40,6 +40,7 @@ def current_shen(is_conv: bool): # Текущий конверсейшен ил�
 	return chat
 
 async def start_cmd(msg: Message):
+	CONFIG_OBJ['tg']['notificate_to'] = msg.from_user.id
 	await msg.answer(START_MSG, parse_mode = 'Markdown')
 
 async def help_cmd(msg: Message):
@@ -54,26 +55,6 @@ async def current_cmd(msg: Message):
 		current_chat = await get_vk_chat_title(current_chat)
 	message = f"Текущий диалог: *{current_chat or 'Нет текущего'}*\nТекущий чат: *{current_conv or 'Нет текущего'}*"
 	await msg.answer(message, parse_mode = 'Markdown')
-
-async def notif(msg: Message):
-	global CONFIG_OBJ
-	args = msg.text.split(' ') # args = ['/notif', 'id']
-	if len(args) == 1:	
-		await msg.answer(f"Сейчас я уведомляю сюда - {CONFIG_OBJ['tg']['notificate_to'] or 'никуда блин'}")
-	else:
-		if args[1] == 'me':
-			CONFIG_OBJ['tg']['notificate_to'] = msg.from_user.id
-			answer = "Я уведомлю вас!"
-			logger.debug(answer)
-			await msg.answer(answer)
-		else:
-			try:
-				new_notif = int(args[1])
-			except:
-				await msg.answer('Как я тебе строчку в число переведу?')
-			else:
-				CONFIG_OBJ['tg']['notificate_to'] = new_notif
-				await msg.answer(f"Я буду отсылать уведомления на этот адрес - {new_notif}!")
 
 async def get_vk_convs(): # Получить Вконтакте диалоги
 	global CONFIG_OBJ, VK_BOT
@@ -97,100 +78,41 @@ async def change_current_title(chat: bool, title: str):
 	else:
 		await TG_API.set_chat_title(CONFIG_OBJ['tg']['conv_id'],title)
 
-def get_conv_or_chat_by_id(is_conv: bool, id: int):
-	if is_conv:
-		try:
-			conv = CONFIG_OBJ['vk']['conversations'][id]
-		except KeyError:
-			return None
-		else:
-			return conv
-	else:
-		try:
-			chat = CONFIG_OBJ['vk']['chats'][id]
-		except KeyError:
-			return None
-		else:
-			return chat
-
-def right_args_syntax(args: list):
-	try:
-		arg = int(args[2])
-	except KeyError:
-		return None
-	else:
-		return arg
-
-async def vk_hand(msg: Message): # Обработчик команд для Вконтакте
+async def vk_chats(msg: Message):
 	global CONFIG_OBJ, VK_BOT
+	keyboard_markup = types.InlineKeyboardMarkup(row_width=3)
+	text_and_data = await prepare_data_for_inline(is_conv = False)
+	row_btns = (types.InlineKeyboardButton(text, callback_data=data) for text, data in text_and_data)
+	keyboard_markup.row(*row_btns)
+	msg_text = 'Выберите чат'
+	if not text_and_data:
+		msg_text = 'У вас нет чатов'
+	await msg.reply(msg_text, reply_markup=keyboard_markup)
 
-	args = msg.text.split(' ') # /v conv 1 OR /v chats
-	if len(args) == 1:
-		await msg.answer('Неправильный синтаксис')
+async def vk_convs(msg: Message):
+	keyboard_markup = types.InlineKeyboardMarkup(row_width=3)
+	text_and_data = await prepare_data_for_inline(is_conv = True)
+	row_btns = (types.InlineKeyboardButton(text, callback_data=data) for text, data in text_and_data)
+	keyboard_markup.row(*row_btns)
+	msg_text = 'Выберите диалог'
+	if not text_and_data:
+		msg_text = 'У вас нет диалогов'
+	await msg.reply(msg_text, reply_markup=keyboard_markup)
 
-	elif args[1] == 'chats':
-		string = ''
-		for n, peer in enumerate(CONFIG_OBJ['vk']['chats']):
-			chat_title = await get_vk_chat_title(peer)
-			string += f'{n+1}: {chat_title}\n'
-		await msg.answer(string or 'Нет чатов') 
-
-	elif args[1] == 'convs':
-		CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
-		string = ""
-		for i, man in enumerate(CONFIG_OBJ['vk']['conversations']):
-			string += f'{i+1}: {man[1]} {man[2]}\n'
-		await msg.answer(string or 'Нет диалогов')
-
-	elif args[1] == 'conv':
-		if not right_args_syntax(args):
-			await msg.answer('Неправильный синтаксис')
-		else:
-			conv = get_conv_or_chat_by_id(is_conv = True, id = int(args[2]) - 1) # /v conv 1 ## 1 is args[2]
-			if not conv:
-				await msg.answer('Текущий диалог не найден')
-			else:
-				CONFIG_OBJ['currentConv'] = conv # Установлен новый текущий чат
-				current_conv = current_shen(is_conv = True) 
-				f,l = current_conv[1], current_conv[2] # Имя, Фамилия = Текущий конверсейшен
-				await change_current_title(chat = False, title = f'{f} {l}')
-				await set_tg_pic(conv[0]) # Поставить аватарку
-				logger.debug(f'Текущий конверсейшен: {f} {l}')
-
-	elif args[1] == 'chat':
-		if not right_args_syntax(args):
-			await msg.answer('Неправильный синтаксис')
-		else:
-			chat = get_conv_or_chat_by_id(is_conv = False, id = int(args[2]) - 1) # /v chat 1 ## 1 is args[2]
-			if not chat:
-				await msg.answer('Такой чат не найден')
-			else:
-				CONFIG_OBJ['currentChat'] = chat
-				chat_title = await get_vk_chat_title(chat)
-				await change_current_title(chat = True, title = chat_title)
-				logger.debug(f'Текущий чатейшен: {chat_title}')
-
+async def chat_register(msg: Message):
+	if msg.chat.type != 'private':
+		await msg.answer(f'{msg.chat.title} зарегистрирован как чатейшен')
+		CONFIG_OBJ['tg']['chat_id'] = msg.chat.id
 	else:
-		await msg.answer('Упс.. Что-то пошло не так')
+		await msg.answer('Для этой команды поддерживается только чат')
 
-async def tg_register(msg: Message):
-	global CONFIG_OBJ
-
-	args = msg.text.split(' ') # /tg_reg chat OR /tg_reg conv
-	if len(args) == 1:
-		await msg.answer('Неправильный синтаксис')
+async def conv_register(msg: Message):
+	print(msg.chat.type)
+	if msg.chat.type != 'private':
+		await msg.answer(f'{msg.chat.title} зарегистрирован как конверсейшен')
+		CONFIG_OBJ['tg']['conv_id'] = msg.chat.id
 	else:
-		if msg.chat.type == 'group' or 'supergroup':
-			if args[1] == 'chat':
-				await msg.answer(f'{msg.chat.title} зарегистрирован как чатейшен')
-				CONFIG_OBJ['tg']['chat_id'] = msg.chat.id
-			elif args[1] == 'conv':
-				await msg.answer(f'{msg.chat.title} зарегистрирован как конверсейшен')
-				CONFIG_OBJ['tg']['conv_id'] = msg.chat.id
-			else:
-				msg.answer('Неправильный синтаксис')
-		else:
-			msg.answer('Для регистрации необходим ЧАТ')
+		await msg.answer('Для этой команды поддерживается только чат')
 
 async def catch_attachments(msg,peer_id):
 	global TG_API,VK_BOT
@@ -227,7 +149,7 @@ async def send_message_in_vk(is_conv: bool, message_object: Message):
 	await VK_BOT.api_context.messages.send(
 		peer_id=id,
 		random_id=0,
-		message=message_object.text or ' ', 
+		message=message_object.text or ' ',
 		attachment=attachs
 	)
 	return attachs
@@ -263,11 +185,66 @@ async def set_tg_pic(id: int):
 	f = open('conv.jpg','rb')
 	await TG_API.set_chat_photo(CONFIG_OBJ['tg']['conv_id'],f)
 
+async def prepare_data_for_inline(is_conv: bool):
+	n = []
+	if is_conv:
+		CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
+		for i,conv_obj in enumerate(CONFIG_OBJ['vk']['conversations']):
+			perfect_username = '{}. {}'.format(conv_obj[1][0], conv_obj[2])
+			n.append(
+				(perfect_username,i) 
+			)
+	else:
+		for _,chat_peer in enumerate(CONFIG_OBJ['vk']['chats']):
+			perfect_title = await get_vk_chat_title(chat_peer)
+			n.append(
+				(perfect_title,chat_peer)
+			)
+	return n
+
+async def get_conv_or_chat_from_callback(is_conv: bool, data: str):
+	global CONFIG_OBJ
+	if is_conv:
+		try:
+			return CONFIG_OBJ['vk']['conversations'][int(data)]
+		except:
+			return False
+	try:
+		n =  CONFIG_OBJ['vk']['chats'].index(int(data))
+		return CONFIG_OBJ['vk']['chats'][n]
+	except:
+		return False
+
+async def callback_handler(qr: types.CallbackQuery):
+	global TG_API, CONFIG_OBJ
+	new_conv = await get_conv_or_chat_from_callback(is_conv = True, data = qr.data)
+	if new_conv != False:
+		msg = 'Текущий диалог - {} {}'.format(new_conv[1],new_conv[2])
+		CONFIG_OBJ['currentConv'] = new_conv
+		f,l = new_conv[1], new_conv[2]
+		await change_current_title(chat = False, title = f'{f} {l}')
+		await set_tg_pic(new_conv[0]) # Поставить аватарку
+		logger.debug(f'Текущий конверсейшен: {f} {l}')
+
+	new_chat = await get_conv_or_chat_from_callback(is_conv = False, data = qr.data)
+	if new_chat != False:
+		msg = 'Текущий чат - {}'.format(await get_vk_chat_title(new_chat))
+		CONFIG_OBJ['currentChat'] = new_chat
+		chat_title = await get_vk_chat_title(new_chat)
+		await change_current_title(chat = True, title = chat_title)
+		logger.debug(f'Текущий чатейшен: {chat_title}')
+
+	await qr.answer(msg)
+	await TG_API.delete_message(chat_id = qr.message.chat.id, message_id = qr.message.message_id)
+	await TG_API.delete_message(chat_id = qr.message.chat.id, message_id = qr.message.reply_to_message.message_id)
+
 def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
 	dp.register_message_handler(help_cmd, commands=['help'])
 	dp.register_message_handler(current_cmd, commands=['current'])
-	dp.register_message_handler(notif, commands=['notif'])
-	dp.register_message_handler(vk_hand, commands=['v'])
-	dp.register_message_handler(tg_register, commands=['tg_reg'])
+	dp.register_message_handler(vk_convs, commands = ['convs'])
+	dp.register_message_handler(vk_chats, commands = ['chats'])
+	dp.register_message_handler(chat_register, commands=['regchat'])
+	dp.register_message_handler(conv_register, commands=['regconv'])
 	dp.register_message_handler(anything, content_types=['photo','document','animation','text'])
+	dp.register_callback_query_handler(callback_handler,  lambda chosen_inline_query: True)
