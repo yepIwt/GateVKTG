@@ -40,6 +40,7 @@ def current_shen(is_conv: bool): # Текущий конверсейшен ил�
 	return chat
 
 async def start_cmd(msg: Message):
+	CONFIG_OBJ['tg']['notificate_to'] = msg.from_user.id
 	await msg.answer(START_MSG, parse_mode = 'Markdown')
 
 async def help_cmd(msg: Message):
@@ -54,26 +55,6 @@ async def current_cmd(msg: Message):
 		current_chat = await get_vk_chat_title(current_chat)
 	message = f"Текущий диалог: *{current_chat or 'Нет текущего'}*\nТекущий чат: *{current_conv or 'Нет текущего'}*"
 	await msg.answer(message, parse_mode = 'Markdown')
-
-async def notif(msg: Message):
-	global CONFIG_OBJ
-	args = msg.text.split(' ') # args = ['/notif', 'id']
-	if len(args) == 1:
-		await msg.answer(f"Сейчас я уведомляю сюда - {CONFIG_OBJ['tg']['notificate_to'] or 'никуда блин'}")
-	else:
-		if args[1] == 'me':
-			CONFIG_OBJ['tg']['notificate_to'] = msg.from_user.id
-			answer = "Я уведомлю вас!"
-			logger.debug(answer)
-			await msg.answer(answer)
-		else:
-			try:
-				new_notif = int(args[1])
-			except:
-				await msg.answer('Как я тебе строчку в число переведу?')
-			else:
-				CONFIG_OBJ['tg']['notificate_to'] = new_notif
-				await msg.answer(f"Я буду отсылать уведомления на этот адрес - {new_notif}!")
 
 async def get_vk_convs(): # Получить Вконтакте диалоги
 	global CONFIG_OBJ, VK_BOT
@@ -96,30 +77,6 @@ async def change_current_title(chat: bool, title: str):
 		await TG_API.set_chat_title(CONFIG_OBJ['tg']['chat_id'],title)
 	else:
 		await TG_API.set_chat_title(CONFIG_OBJ['tg']['conv_id'],title)
-
-def get_conv_or_chat_by_id(is_conv: bool, id: int):
-	if is_conv:
-		try:
-			conv = CONFIG_OBJ['vk']['conversations'][id]
-		except KeyError:
-			return None
-		else:
-			return conv
-	else:
-		try:
-			chat = CONFIG_OBJ['vk']['chats'][id]
-		except KeyError:
-			return None
-		else:
-			return chat
-
-def right_args_syntax(args: list):
-	try:
-		arg = int(args[2])
-	except KeyError:
-		return None
-	else:
-		return arg
 
 async def vk_chats(msg: Message):
 	global CONFIG_OBJ, VK_BOT
@@ -303,7 +260,6 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
 	dp.register_message_handler(help_cmd, commands=['help'])
 	dp.register_message_handler(current_cmd, commands=['current'])
-	dp.register_message_handler(notif, commands=['notif'])
 	dp.register_message_handler(vk_convs, commands = ['convs'])
 	dp.register_message_handler(vk_chats, commands = ['chats'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
