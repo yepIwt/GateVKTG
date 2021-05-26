@@ -99,24 +99,20 @@ async def vk_convs(msg: Message):
 		msg_text = 'У вас нет диалогов'
 	await msg.reply(msg_text, reply_markup=keyboard_markup)
 
-async def tg_register(msg: Message):
-	global CONFIG_OBJ
-
-	args = msg.text.split(' ') # /tg_reg chat OR /tg_reg conv
-	if len(args) == 1:
-		await msg.answer('Неправильный синтаксис')
+async def chat_register(msg: Message):
+	if msg.chat.type != 'private':
+		await msg.answer(f'{msg.chat.title} зарегистрирован как чатейшен')
+		CONFIG_OBJ['tg']['chat_id'] = msg.chat.id
 	else:
-		if msg.chat.type == 'group' or 'supergroup':
-			if args[1] == 'chat':
-				await msg.answer(f'{msg.chat.title} зарегистрирован как чатейшен')
-				CONFIG_OBJ['tg']['chat_id'] = msg.chat.id
-			elif args[1] == 'conv':
-				await msg.answer(f'{msg.chat.title} зарегистрирован как конверсейшен')
-				CONFIG_OBJ['tg']['conv_id'] = msg.chat.id
-			else:
-				msg.answer('Неправильный синтаксис')
-		else:
-			msg.answer('Для регистрации необходим ЧАТ')
+		await msg.answer('Для этой команды поддерживается только чат')
+
+async def conv_register(msg: Message):
+	print(msg.chat.type)
+	if msg.chat.type != 'private':
+		await msg.answer(f'{msg.chat.title} зарегистрирован как конверсейшен')
+		CONFIG_OBJ['tg']['conv_id'] = msg.chat.id
+	else:
+		await msg.answer('Для этой команды поддерживается только чат')
 
 async def catch_attachments(msg,peer_id):
 	global TG_API,VK_BOT
@@ -219,20 +215,6 @@ async def get_conv_or_chat_from_callback(is_conv: bool, data: str):
 	except:
 		return False
 
-async def edit_inline_markup(msg_id: int, chat_id: int, markup, text = None):
-	global tg_bot
-	await tg_bot.edit_message_reply_markup(
-		message_id = msg_id,
-		chat_id = chat_id,
-		reply_markup = markup
-	)
-	if text:
-		await tg_bot.edit_message_text(
-			message_id = msg_id,
-			chat_id = chat_id,
-			text = text
-		)
-
 async def callback_handler(qr: types.CallbackQuery):
 	global TG_API, CONFIG_OBJ
 	new_conv = await get_conv_or_chat_from_callback(is_conv = True, data = qr.data)
@@ -262,6 +244,7 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(current_cmd, commands=['current'])
 	dp.register_message_handler(vk_convs, commands = ['convs'])
 	dp.register_message_handler(vk_chats, commands = ['chats'])
-	dp.register_message_handler(tg_register, commands=['tg_reg'])
+	dp.register_message_handler(chat_register, commands=['regchat'])
+	dp.register_message_handler(conv_register, commands=['regconv'])
 	dp.register_message_handler(anything, content_types=['photo','document','animation','text'])
 	dp.register_callback_query_handler(callback_handler,  lambda chosen_inline_query: True)
