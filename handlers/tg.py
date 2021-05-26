@@ -3,7 +3,7 @@ import requests
 import vkwave.bots
 from loguru import logger
 import moviepy.editor as mp
-from aiogram import Dispatcher
+from aiogram import Dispatcher, types
 from aiogram.types import Message
 
 START_MSG = 'Привет!\nЯ нужен для отправки сообщений из Вконтакте и Телеграма.\n*Связист*, проще говоря :)'
@@ -58,7 +58,7 @@ async def current_cmd(msg: Message):
 async def notif(msg: Message):
 	global CONFIG_OBJ
 	args = msg.text.split(' ') # args = ['/notif', 'id']
-	if len(args) == 1:	
+	if len(args) == 1:
 		await msg.answer(f"Сейчас я уведомляю сюда - {CONFIG_OBJ['tg']['notificate_to'] or 'никуда блин'}")
 	else:
 		if args[1] == 'me':
@@ -133,14 +133,14 @@ async def vk_hand(msg: Message): # Обработчик команд для Вк
 		for n, peer in enumerate(CONFIG_OBJ['vk']['chats']):
 			chat_title = await get_vk_chat_title(peer)
 			string += f'{n+1}: {chat_title}\n'
-		await msg.answer(string or 'Нет чатов') 
+		await msg.answer(string or 'Нет чатов')
 
 	elif args[1] == 'convs':
-		CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
-		string = ""
-		for i, man in enumerate(CONFIG_OBJ['vk']['conversations']):
-			string += f'{i+1}: {man[1]} {man[2]}\n'
-		await msg.answer(string or 'Нет диалогов')
+		keyboard_markup = types.InlineKeyboardMarkup(row_width=3)
+		text_and_data = await prepare_convs()
+		row_btns = (types.InlineKeyboardButton(text, callback_data=data) for text, data in text_and_data)
+		keyboard_markup.row(*row_btns)
+		await msg.reply("Выберите диалог", reply_markup=keyboard_markup)
 
 	elif args[1] == 'conv':
 		if not right_args_syntax(args):
@@ -151,7 +151,7 @@ async def vk_hand(msg: Message): # Обработчик команд для Вк
 				await msg.answer('Текущий диалог не найден')
 			else:
 				CONFIG_OBJ['currentConv'] = conv # Установлен новый текущий чат
-				current_conv = current_shen(is_conv = True) 
+				current_conv = current_shen(is_conv = True)
 				f,l = current_conv[1], current_conv[2] # Имя, Фамилия = Текущий конверсейшен
 				await change_current_title(chat = False, title = f'{f} {l}')
 				await set_tg_pic(conv[0]) # Поставить аватарку
@@ -227,7 +227,7 @@ async def send_message_in_vk(is_conv: bool, message_object: Message):
 	await VK_BOT.api_context.messages.send(
 		peer_id=id,
 		random_id=0,
-		message=message_object.text or ' ', 
+		message=message_object.text or ' ',
 		attachment=attachs
 	)
 	return attachs
@@ -263,6 +263,48 @@ async def set_tg_pic(id: int):
 	f = open('conv.jpg','rb')
 	await TG_API.set_chat_photo(CONFIG_OBJ['tg']['conv_id'],f)
 
+async def prepare_convs():
+	CONFIG_OBJ['vk']['conversations'] = await get_vk_convs()
+	n = []
+	for i,conv_obj in enumerate(CONFIG_OBJ['vk']['conversations']):
+		perfect_username = '{}. {}'.format(conv_obj[1][0], conv_obj[2])
+		n.append(
+			(perfect_username,i) 
+		)
+	return n
+
+async def get_conv_from_callback(b: str):
+	global CONFIG_OBJ
+	try:
+		return CONFIG_OBJ['vk']['conversations'][int(b)]
+	except:
+		return False
+
+async def edit_inline_markup(msg_id: int, chat_id: int, markup, text = None):
+	global tg_bot
+	await tg_bot.edit_message_reply_markup(
+		message_id = msg_id,
+		chat_id = chat_id,
+		reply_markup = markup
+	)
+	if text:
+		await tg_bot.edit_message_text(
+			message_id = msg_id,
+			chat_id = chat_id,
+			text = text
+		)
+
+async def callback_handler(qr: types.CallbackQuery):
+	global TG_API, CONFIG_OBJ
+	n = await get_conv_from_callback(qr.data)
+	if n != False:
+		new_conv = await get_conv_from_callback(qr.data)
+		msg = 'Текущий диалог - {} {}'.format(new_conv[1],new_conv[2])
+		await qr.answer(msg)
+		await TG_API.delete_message(chat_id = qr.message.chat.id, message_id = qr.message.message_id)
+		await TG_API.delete_message(chat_id = qr.message.chat.id, message_id = qr.message.reply_to_message.message_id)
+		CONFIG_OBJ['currentConv'] = new_conv
+
 def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(start_cmd, commands=['start'])
 	dp.register_message_handler(help_cmd, commands=['help'])
@@ -271,3 +313,4 @@ def setup_tg_handlers(dp: Dispatcher):
 	dp.register_message_handler(vk_hand, commands=['v'])
 	dp.register_message_handler(tg_register, commands=['tg_reg'])
 	dp.register_message_handler(anything, content_types=['photo','document','animation','text'])
+	dp.register_callback_query_handler(callback_handler,  lambda chosen_inline_query: True)
