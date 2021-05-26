@@ -52,6 +52,9 @@ async def send_notification_into_telegram(fl: tuple, message_text: str, chat_tit
                     photo = open(catched['filename'],'rb'),
                     caption = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {catched['caption'] or ' '}"
                 )
+            elif catched['type'] == 'wall':
+                msg_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: [Запись на стене]({catched['filename']}). {catched['text']}"
+                await tg_bot.send_message(chat_id = CONFIG_OBJ['tg']['notificate_to'], text = msg_text, parse_mode='Markdown')
     else:
         notification_text = f"{fl[0]} {fl[1]}@{chat_title or 'localhost'}: {message_text}"
         await tg_bot.send_message(CONFIG_OBJ['tg']['notificate_to'], notification_text)
@@ -116,7 +119,13 @@ async def catch_attachments(event: SimpleBotEvent):
                         'type': 'audio',
                         'caption': event.object.object.message.text,
                         'filename': await download_audio(attach)
-                    })
+                })
+            elif attach.type == MessagesMessageAttachmentType.WALL:
+                catched_attachs.append({
+                        'type': 'wall',
+                        'text': event.object.object.message.text,
+                        'filename': 'https://vk.com/wall{}_{}'.format(attach.wall.from_id, attach.wall.id)
+                })
     return catched_attachs
 
 async def send_tg_voice(filename: str, chat_id: int, caption = None):
@@ -160,6 +169,7 @@ async def send_tg_audio(filename: str, chat_id: int, caption = None):
         )
 
 async def send_catched_attachments(attachments, send_to):
+    global tg_bot
     for catched in attachments:
         if catched['type'] == 'voice':
             await send_tg_voice(catched['filename'], send_to) # CONFIG_OBJ['tg']['chat_id']
@@ -169,6 +179,9 @@ async def send_catched_attachments(attachments, send_to):
             await send_tg_doc(catched['filename'], send_to, catched['caption'])
         elif catched['type'] == 'audio':
             await send_tg_audio(catched['filename'], send_to, catched['caption'])
+        elif catched['type'] == 'wall':
+            msg_text = f"[Запись на стене]({catched['filename']}). {catched['text']}"
+            await tg_bot.send_message(chat_id = send_to, text = msg_text, parse_mode='Markdown')
 
 @simple_bot_message_handler(vk_msg_from_chat,filters.MessageFromConversationTypeFilter("from_chat"))
 async def answer_chat(event: SimpleBotEvent):
